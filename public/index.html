@@ -755,40 +755,38 @@ tailwind.config = {
                   <div class="upload-preview hidden" id="previewDesign"></div>
                 </div>
                 <!-- Tab 内容：Figma 导入 -->
-                <div id="designTabFigma" class="hidden upload-zone upload-zone-new flex-1 p-4" style="border-top-left-radius:0;cursor:default;overflow-y:auto;" onclick="">
-                  <div class="mb-2">
-                    <div class="flex items-center gap-1 mb-1">
-                      <label class="text-xs text-gray-500">Figma 链接</label>
-                      <span class="figma-info-trigger relative" onmouseenter="this.querySelector('.figma-info-tip').classList.remove('hidden')" onmouseleave="this.querySelector('.figma-info-tip').classList.add('hidden')">
+                <div id="designTabFigma" class="hidden upload-zone upload-zone-new flex-1" style="border-top-left-radius:0;cursor:default;overflow-y:auto;display:none;padding:16px 20px;" onclick="">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-1">
+                      <span class="text-xs text-gray-500">Figma 链接</span>
+                      <span class="relative" onmouseenter="this.querySelector('.figma-info-tip').classList.remove('hidden')" onmouseleave="this.querySelector('.figma-info-tip').classList.add('hidden')">
                         <svg class="w-3 h-3 text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
                         <div class="figma-info-tip hidden absolute left-0 top-5 z-50 w-56 p-2.5 rounded-lg bg-gray-800 text-white text-[10px] leading-relaxed shadow-xl" style="pointer-events:none;">
                           <div class="font-medium mb-1">链接读取范围：</div>
-                          <div>• <b>Frame 链接</b> → 导入该 1 个画板</div>
-                          <div>• <b>Section 链接</b> → 导入该分区下所有 Frame</div>
-                          <div>• <b>Page 链接</b> → 导入该页面下所有顶层 Frame</div>
+                          <div>• <b>Frame</b> → 导入 1 个画板</div>
+                          <div>• <b>Section</b> → 该分区下所有 Frame</div>
+                          <div>• <b>Page</b> → 该页面下所有顶层 Frame</div>
                         </div>
                       </span>
-                      <span class="ml-auto text-[10px] text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer transition-colors" onclick="showFigmaLinkHelp()">如何获取链接？</span>
                     </div>
-                    <textarea id="figmaLinkInput" rows="2"
-                      placeholder="粘贴 Figma 链接（Frame / Section / Page 均可）"
-                      class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white/60 resize-none focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all"></textarea>
+                    <span class="text-[10px] text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer" onclick="showFigmaLinkHelp()">如何获取链接？</span>
                   </div>
-                  <div class="mb-2">
-                    <div class="flex items-center gap-1 mb-1">
-                      <label class="text-xs text-gray-500">Personal Access Token</label>
-                      <span class="ml-auto text-[10px] text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer transition-colors" onclick="showFigmaTokenHelp()">如何获取？</span>
-                    </div>
-                    <input id="figmaTokenInput" type="password"
-                      placeholder="figd_..."
-                      class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white/60 focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all" />
-                    <label class="flex items-center gap-1.5 mt-1 cursor-pointer select-none">
-                      <input type="checkbox" id="figmaRememberToken" checked class="accent-[var(--color-terracotta)]" />
-                      <span class="text-xs text-gray-400">记住 Token</span>
-                    </label>
+                  <input id="figmaLinkInput" type="text"
+                    placeholder="粘贴 Figma 链接（Frame / Section / Page 均可）"
+                    class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white/60 mb-3 focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all" />
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs text-gray-500">Personal Access Token</span>
+                    <span class="text-[10px] text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer" onclick="showFigmaTokenHelp()">如何获取？</span>
                   </div>
+                  <input id="figmaTokenInput" type="password"
+                    placeholder="figd_..."
+                    class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white/60 mb-1.5 focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all" />
+                  <label class="flex items-center gap-1.5 mb-3 cursor-pointer select-none">
+                    <input type="checkbox" id="figmaRememberToken" checked class="accent-[var(--color-terracotta)]" />
+                    <span class="text-xs text-gray-400">记住 Token</span>
+                  </label>
                   <!-- Frame 勾选列表（Section/Page 时显示） -->
-                  <div id="figmaFrameList" class="hidden mb-2 max-h-32 overflow-y-auto border border-gray-100 rounded-lg p-2 bg-gray-50/50">
+                  <div id="figmaFrameList" class="hidden mb-3 max-h-28 overflow-y-auto border border-gray-100 rounded-lg p-2 bg-gray-50/50">
                     <div class="flex items-center justify-between mb-2">
                       <span class="text-xs font-medium text-gray-600" id="figmaFrameListTitle">选择要导入的 Frame</span>
                       <label class="flex items-center gap-1 cursor-pointer select-none">
@@ -800,7 +798,7 @@ tailwind.config = {
                   </div>
                   <button id="figmaImportBtn" onclick="importFromFigma()"
                     class="w-full text-xs font-medium py-2 rounded-lg bg-[var(--color-terracotta)] text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5">
-                    <svg class="figma-btn-icon w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                     导入设计稿
                   </button>
                   <div id="figmaImportStatus" class="hidden mt-2 text-xs text-center"></div>
@@ -3126,19 +3124,17 @@ function switchDesignTab(tab) {
   const figmaBtn = document.getElementById('designTabFigmaBtn');
 
   if (tab === 'upload') {
+    uploadTab.style.display = '';
     uploadTab.classList.remove('hidden');
-    figmaTab.classList.add('hidden');
+    figmaTab.style.display = 'none';
     uploadBtn.classList.add('design-tab-active');
     figmaBtn.classList.remove('design-tab-active');
-    uploadTab.style.borderTopLeftRadius = '0';
-    uploadTab.style.borderTopRightRadius = '';
   } else {
-    uploadTab.classList.add('hidden');
+    uploadTab.style.display = 'none';
+    figmaTab.style.display = '';
     figmaTab.classList.remove('hidden');
     figmaBtn.classList.add('design-tab-active');
     uploadBtn.classList.remove('design-tab-active');
-    figmaTab.style.borderTopLeftRadius = '';
-    figmaTab.style.borderTopRightRadius = '0';
   }
 }
 
