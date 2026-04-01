@@ -1,4 +1,5 @@
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+const MODEL = 'claude-sonnet-4-20250514';
 
 const PROMPT = `你是一个专业的 UI 走查工具。我给你两张图片：
 - 第一张是设计稿（Figma 预期效果）
@@ -36,8 +37,8 @@ area 字段用百分比表示问题在图片中的大致位置和范围。
 
 function parseB64(b64str) {
   const match = b64str.match(/^data:(image\/[^;]+);base64,(.+)$/);
-  if (match) return { mimeType: match[1], data: match[2] };
-  return { mimeType: 'image/jpeg', data: b64str };
+  if (match) return { media_type: match[1], data: match[2] };
+  return { media_type: 'image/jpeg', data: b64str };
 }
 
 export default async function handler(req, res) {
@@ -55,19 +56,26 @@ export default async function handler(req, res) {
     const dev = parseB64(devImage);
 
     const requestBody = {
-      contents: [{
-        parts: [
-          { text: PROMPT },
-          { inlineData: { mimeType: design.mimeType, data: design.data } },
-          { inlineData: { mimeType: dev.mimeType, data: dev.data } }
+      model: MODEL,
+      max_tokens: 16384,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: PROMPT },
+          { type: 'image', source: { type: 'base64', media_type: design.media_type, data: design.data } },
+          { type: 'image', source: { type: 'base64', media_type: dev.media_type, data: dev.data } }
         ]
       }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 16384 }
+      temperature: 0.2
     };
 
-    const response = await fetch(GEMINI_URL, {
+    const response = await fetch(ANTHROPIC_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
       body: JSON.stringify(requestBody)
     });
 
@@ -76,24 +84,21 @@ export default async function handler(req, res) {
       throw new Error(json.error.message || JSON.stringify(json.error));
     }
 
-    const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const rawText = json.content?.[0]?.text || '{}';
     let text = rawText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
     let issues = [];
-    // 尝试解析为 {issues: [...]} 格式
     const objMatch = text.match(/\{[\s\S]*\}/);
     if (objMatch) {
       try {
         const parsed = JSON.parse(objMatch[0]);
         issues = parsed.issues || [];
       } catch {
-        // 尝试解析为纯数组格式
         const arrMatch = text.match(/\[[\s\S]*\]/);
         if (arrMatch) {
           try {
             issues = JSON.parse(arrMatch[0]);
           } catch {
-            // JSON 截断修复
             let partial = arrMatch[0];
             const lastComplete = partial.lastIndexOf('}');
             if (lastComplete > 0) {
@@ -111,7 +116,7 @@ export default async function handler(req, res) {
     console.error('Analysis error:', err);
     const msg = err.message || '分析失败';
     const detail = msg.includes('timeout') || msg.includes('aborted') ? '请求超时，图片可能过大'
-      : msg.includes('API key') || msg.includes('403') || msg.includes('401') ? 'API Key 无效或过期'
+      : msg.includes('api_key') || msg.includes('401') ? 'API Key 无效或过期'
       : msg.includes('429') ? 'API 调用频率超限，请稍后重试'
       : msg;
     return res.status(500).json({ error: detail });
