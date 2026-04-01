@@ -593,6 +593,19 @@ tailwind.config = {
   .upload-zone-new:hover { border-color: rgba(198,93,59,.45); background: rgba(198,93,59,.04); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(198,93,59,.08); }
   .upload-icon-wrap { width: 44px; height: 44px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; transition: all .3s cubic-bezier(.4,0,.2,1); }
   .upload-zone-new:hover .upload-icon-wrap { transform: scale(1.08); }
+  /* Design tab styles */
+  .design-tab { display:inline-flex; align-items:center; gap:4px; padding:6px 14px; font-size:11px; font-weight:600; color:#9A9A90; background:rgba(255,255,255,.2); border:1px solid rgba(209,209,201,.3); border-bottom:none; border-radius:10px 10px 0 0; cursor:pointer; transition:all .2s; }
+  .design-tab:hover { color:#6B6B64; background:rgba(255,255,255,.4); }
+  .design-tab-active { color:var(--color-terracotta); background:rgba(255,255,255,.55); border-color:rgba(198,93,59,.2); }
+  /* Figma help modal */
+  .figma-modal-overlay { position:fixed; inset:0; z-index:9999; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.35); backdrop-filter:blur(4px); animation:fadeIn .2s ease; }
+  .figma-modal { background:#fff; border-radius:16px; padding:24px; max-width:420px; width:90%; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.15); animation:slideUp .3s cubic-bezier(.16,1,.3,1); }
+  .figma-modal h3 { font-size:15px; font-weight:700; color:#1F1F1F; margin-bottom:16px; }
+  .figma-modal .step { display:flex; gap:10px; margin-bottom:12px; }
+  .figma-modal .step-num { width:20px; height:20px; border-radius:50%; background:var(--color-terracotta); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .figma-modal .step-text { font-size:13px; color:#4A4A44; line-height:1.5; }
+  .figma-modal .step-text b { color:#1F1F1F; }
+  .figma-modal .tip-box { background:rgba(198,93,59,.06); border-radius:8px; padding:10px 12px; font-size:12px; color:#6B6B64; margin-top:4px; }
   .project-card-new { background: rgba(255,255,255,.55); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.5); border-radius: 18px; box-shadow: 0 2px 12px rgba(31,31,31,.04); transition: all .3s cubic-bezier(.4,0,.2,1); overflow: hidden; }
   .project-card-new:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(31,31,31,.08); border-color: rgba(198,93,59,.2); }
   .project-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -717,8 +730,20 @@ tailwind.config = {
           <div class="glass-card stagger-2 p-6">
             <!-- 大上传区 -->
             <div class="flex items-stretch gap-4 mb-5">
-              <div class="flex-1 flex flex-col gap-2">
-                <div class="upload-zone upload-zone-new flex-1" onclick="document.getElementById('uploadDesign').click()">
+              <div class="flex-1 flex flex-col">
+                <!-- Tab 切换头 -->
+                <div class="flex gap-0 mb-0" style="margin-bottom:-1px;position:relative;z-index:1;">
+                  <button id="designTabUploadBtn" class="design-tab design-tab-active" onclick="switchDesignTab('upload')">
+                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                    上传图片
+                  </button>
+                  <button id="designTabFigmaBtn" class="design-tab" onclick="switchDesignTab('figma')">
+                    <svg class="w-3 h-3" viewBox="0 0 38 57" fill="currentColor"><path d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z"/><path d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 0 1-19 0z"/><path d="M19 0v19h9.5a9.5 9.5 0 0 0 0-19H19z"/><path d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z"/><path d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z"/></svg>
+                    Figma 导入
+                  </button>
+                </div>
+                <!-- Tab 内容：上传图片 -->
+                <div id="designTabUpload" class="upload-zone upload-zone-new flex-1" onclick="document.getElementById('uploadDesign').click()" style="border-top-left-radius:0;">
                   <input type="file" id="uploadDesign" class="hidden" multiple accept="image/*" onchange="handleUploadPreview(this, 'previewDesign')" />
                   <div class="upload-placeholder" id="placeholderDesign">
                     <div class="upload-icon-wrap" style="background:rgba(198,93,59,.08)">
@@ -729,37 +754,41 @@ tailwind.config = {
                   </div>
                   <div class="upload-preview hidden" id="previewDesign"></div>
                 </div>
-                <!-- Figma 导入入口 -->
-                <div class="text-center">
-                  <span id="figmaToggleLink" class="text-xs text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer transition-colors" onclick="toggleFigmaPanel()">
-                    <svg class="inline-block w-3 h-3 mr-0.5 -mt-0.5" viewBox="0 0 38 57" fill="currentColor"><path d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z"/><path d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 0 1-19 0z"/><path d="M19 0v19h9.5a9.5 9.5 0 0 0 0-19H19z"/><path d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z"/><path d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z"/></svg>
-                    或从 Figma 导入
-                  </span>
-                </div>
-                <!-- Figma 导入面板（默认隐藏） -->
-                <div id="figmaPanel" class="hidden rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm p-4 transition-all" style="animation:fadeInUp .25s ease">
-                  <div class="flex items-center justify-between mb-3">
-                    <div class="text-sm font-semibold text-gray-700">从 Figma 导入</div>
-                    <span class="text-xs text-gray-400 hover:text-gray-600 cursor-pointer" onclick="toggleFigmaPanel()">收起</span>
-                  </div>
-                  <div class="mb-2.5">
-                    <label class="text-xs text-gray-500 mb-1 block">Figma 链接</label>
+                <!-- Tab 内容：Figma 导入 -->
+                <div id="designTabFigma" class="hidden upload-zone upload-zone-new flex-1 p-4" style="border-top-left-radius:0;cursor:default;overflow-y:auto;" onclick="">
+                  <div class="mb-2">
+                    <div class="flex items-center gap-1 mb-1">
+                      <label class="text-xs text-gray-500">Figma 链接</label>
+                      <span class="figma-info-trigger relative" onmouseenter="this.querySelector('.figma-info-tip').classList.remove('hidden')" onmouseleave="this.querySelector('.figma-info-tip').classList.add('hidden')">
+                        <svg class="w-3 h-3 text-gray-400 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg>
+                        <div class="figma-info-tip hidden absolute left-0 top-5 z-50 w-56 p-2.5 rounded-lg bg-gray-800 text-white text-[10px] leading-relaxed shadow-xl" style="pointer-events:none;">
+                          <div class="font-medium mb-1">链接读取范围：</div>
+                          <div>• <b>Frame 链接</b> → 导入该 1 个画板</div>
+                          <div>• <b>Section 链接</b> → 导入该分区下所有 Frame</div>
+                          <div>• <b>Page 链接</b> → 导入该页面下所有顶层 Frame</div>
+                        </div>
+                      </span>
+                      <span class="ml-auto text-[10px] text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer transition-colors" onclick="showFigmaLinkHelp()">如何获取链接？</span>
+                    </div>
                     <textarea id="figmaLinkInput" rows="2"
                       placeholder="粘贴 Figma 链接（Frame / Section / Page 均可）"
                       class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white/60 resize-none focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all"></textarea>
                   </div>
-                  <div class="mb-3">
-                    <label class="text-xs text-gray-500 mb-1 block">Personal Access Token</label>
+                  <div class="mb-2">
+                    <div class="flex items-center gap-1 mb-1">
+                      <label class="text-xs text-gray-500">Personal Access Token</label>
+                      <span class="ml-auto text-[10px] text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer transition-colors" onclick="showFigmaTokenHelp()">如何获取？</span>
+                    </div>
                     <input id="figmaTokenInput" type="password"
                       placeholder="figd_..."
                       class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white/60 focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all" />
-                    <label class="flex items-center gap-1.5 mt-1.5 cursor-pointer select-none">
+                    <label class="flex items-center gap-1.5 mt-1 cursor-pointer select-none">
                       <input type="checkbox" id="figmaRememberToken" checked class="accent-[var(--color-terracotta)]" />
                       <span class="text-xs text-gray-400">记住 Token</span>
                     </label>
                   </div>
                   <!-- Frame 勾选列表（Section/Page 时显示） -->
-                  <div id="figmaFrameList" class="hidden mb-3 max-h-48 overflow-y-auto border border-gray-100 rounded-lg p-2 bg-gray-50/50">
+                  <div id="figmaFrameList" class="hidden mb-2 max-h-32 overflow-y-auto border border-gray-100 rounded-lg p-2 bg-gray-50/50">
                     <div class="flex items-center justify-between mb-2">
                       <span class="text-xs font-medium text-gray-600" id="figmaFrameListTitle">选择要导入的 Frame</span>
                       <label class="flex items-center gap-1 cursor-pointer select-none">
@@ -3090,19 +3119,74 @@ function clearUpload(inputId, previewId) {
   }
 })();
 
-function toggleFigmaPanel() {
-  const panel = document.getElementById('figmaPanel');
-  const link = document.getElementById('figmaToggleLink');
-  if (panel.classList.contains('hidden')) {
-    panel.classList.remove('hidden');
-    link.classList.add('hidden');
+function switchDesignTab(tab) {
+  const uploadTab = document.getElementById('designTabUpload');
+  const figmaTab = document.getElementById('designTabFigma');
+  const uploadBtn = document.getElementById('designTabUploadBtn');
+  const figmaBtn = document.getElementById('designTabFigmaBtn');
+
+  if (tab === 'upload') {
+    uploadTab.classList.remove('hidden');
+    figmaTab.classList.add('hidden');
+    uploadBtn.classList.add('design-tab-active');
+    figmaBtn.classList.remove('design-tab-active');
+    uploadTab.style.borderTopLeftRadius = '0';
+    uploadTab.style.borderTopRightRadius = '';
   } else {
-    panel.classList.add('hidden');
-    link.classList.remove('hidden');
-    // 隐藏 Frame 列表
-    document.getElementById('figmaFrameList').classList.add('hidden');
-    setFigmaStatus('', '');
+    uploadTab.classList.add('hidden');
+    figmaTab.classList.remove('hidden');
+    figmaBtn.classList.add('design-tab-active');
+    uploadBtn.classList.remove('design-tab-active');
+    figmaTab.style.borderTopLeftRadius = '';
+    figmaTab.style.borderTopRightRadius = '0';
   }
+}
+
+// Token 教程弹窗
+function showFigmaTokenHelp() {
+  const overlay = document.createElement('div');
+  overlay.className = 'figma-modal-overlay';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="figma-modal">
+      <div class="flex items-center justify-between mb-4">
+        <h3 style="margin:0;">如何获取 Figma Token</h3>
+        <span class="text-gray-400 hover:text-gray-600 cursor-pointer text-lg leading-none" onclick="this.closest('.figma-modal-overlay').remove()">&times;</span>
+      </div>
+      <div class="step"><div class="step-num">1</div><div class="step-text">点击 Figma 左上角 <b>头像</b> → <b>Settings</b></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">切换到 <b>Security</b> 标签页</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">找到 <b>Personal access tokens</b> → 点击 <b>Generate new token</b></div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">填写 Token 名称，设置有效期</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text">Scopes 必选 <b>file_content:read</b></div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-text">点击 <b>Generate token</b>，复制并保存</div></div>
+      <div class="tip-box">⚠️ Token 只会显示一次，请立即复制保存。</div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+// 如何复制 Figma 链接教程弹窗
+function showFigmaLinkHelp() {
+  const overlay = document.createElement('div');
+  overlay.className = 'figma-modal-overlay';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+  overlay.innerHTML = `
+    <div class="figma-modal">
+      <div class="flex items-center justify-between mb-4">
+        <h3 style="margin:0;">如何获取 Figma 链接</h3>
+        <span class="text-gray-400 hover:text-gray-600 cursor-pointer text-lg leading-none" onclick="this.closest('.figma-modal-overlay').remove()">&times;</span>
+      </div>
+      <div style="font-size:13px;font-weight:600;color:#1F1F1F;margin-bottom:8px;">复制 Frame 链接</div>
+      <div class="step"><div class="step-num">1</div><div class="step-text">在左侧图层面板 <b>选中一个 Frame</b></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">右键 → <b>Copy/paste as</b> → <b>Copy link</b></div></div>
+      <div style="font-size:13px;font-weight:600;color:#1F1F1F;margin:12px 0 8px;">复制 Section 链接</div>
+      <div class="step"><div class="step-num">1</div><div class="step-text">在左侧图层面板 <b>选中一个 Section</b></div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">右键 → <b>Copy/paste as</b> → <b>Copy link</b></div></div>
+      <div style="font-size:13px;font-weight:600;color:#1F1F1F;margin:12px 0 8px;">复制 Page 链接</div>
+      <div class="step"><div class="step-num">1</div><div class="step-text">左上角 <b>页面列表</b>，右键某个 Page</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">选择 <b>Copy link to page</b></div></div>
+      <div class="tip-box">💡 链接中需包含 <b>node-id</b> 参数才能正确识别。直接从 Figma 复制的链接都会自动带上。</div>
+    </div>`;
+  document.body.appendChild(overlay);
 }
 
 function parseFigmaUrl(url) {
@@ -3278,10 +3362,9 @@ async function exportFigmaImages(fileKey, nodeIds, token) {
     zone.classList.add('has-files');
     updateStartButtons();
 
-    // 收起 Figma 面板
+    // 导入成功后切换回上传 Tab 显示预览
     setFigmaStatus('', '');
-    document.getElementById('figmaPanel').classList.add('hidden');
-    document.getElementById('figmaToggleLink').classList.remove('hidden');
+    switchDesignTab('upload');
     document.getElementById('figmaFrameList').classList.add('hidden');
 
     // 恢复按钮
