@@ -109,6 +109,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ issues });
   } catch (err) {
     console.error('Analysis error:', err);
-    return res.status(500).json({ error: err.message || '分析失败' });
+    const msg = err.message || '分析失败';
+    const detail = msg.includes('timeout') || msg.includes('aborted') ? '请求超时，图片可能过大'
+      : msg.includes('API key') || msg.includes('403') || msg.includes('401') ? 'API Key 无效或过期'
+      : msg.includes('429') ? 'API 调用频率超限，请稍后重试'
+      : msg;
+    return res.status(500).json({ error: detail });
   }
 }

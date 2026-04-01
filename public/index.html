@@ -626,7 +626,8 @@ tailwind.config = {
   .project-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .cta-btn { background: linear-gradient(135deg, var(--color-terracotta) 0%, #D4775A 100%); color: #fff; border: none; border-radius: 999px; padding: 10px 28px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .3s cubic-bezier(.4,0,.2,1); letter-spacing: .01em; }
   .cta-btn:hover { box-shadow: 0 6px 24px rgba(198,93,59,.3); transform: translateY(-2px); }
-  .cta-btn:disabled { background: #D1D1C9; color: #9A9A90; cursor: not-allowed; box-shadow: none; transform: none; }
+  .cta-btn:disabled:not(.loading) { background: #D1D1C9; color: #9A9A90; cursor: not-allowed; box-shadow: none; transform: none; }
+  .cta-btn.loading { opacity: .85; cursor: wait; box-shadow: none; transform: none; }
   .glass-toolbar { background: rgba(255,255,255,.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.5); border-radius: 16px; box-shadow: 0 4px 20px rgba(31,31,31,.06); }
   /* Staggered entrance */
   .stagger-1 { animation: slideUp .5s cubic-bezier(.16,1,.3,1) .05s both; }
@@ -3269,8 +3270,8 @@ function showFigmaImportHelp() {
       </div>
       <div class="step"><div class="step-num">1</div><div class="step-text"><b>为什么上传 Figma 链接</b><br>在 Figma 中复制的页面链接，粘贴后即可自动拉取设计稿图片，无需手动截图。</div></div>
       <div class="step"><div class="step-num">2</div><div class="step-text"><b>不同链接的导入范围</b><br>• <b>Frame 链接</b> → 导入 1 个画板<br>• <b>Section 链接</b> → 导入该分区下所有 Frame<br>• <b>Page 链接</b> → 导入该页面下所有顶层 Frame
-        <div style="margin-top:12px;overflow:hidden;border-radius:8px;">
-          <img src="figma-structure.png" alt="Figma 层级结构：Page → Section → Frame" style="width:100%;border-radius:8px;border:1px solid #e8e5df;transition:transform .3s ease;transform-origin:center;display:block;" onmouseenter="this.style.transform='scale(1.8)'" onmouseleave="this.style.transform='scale(1)'" />
+        <div style="margin-top:12px;border-radius:8px;cursor:zoom-in;" onmouseenter="(function(el){var r=el.getBoundingClientRect();var z=document.createElement('div');z.id='imgZoomFloat';z.style.cssText='position:fixed;z-index:99999;left:50%;top:50%;transform:translate(-50%,-50%);max-width:90vw;max-height:90vh;pointer-events:none;';z.innerHTML='<img src=&quot;figma-structure.png&quot; style=&quot;max-width:90vw;max-height:90vh;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.25);display:block;&quot;/>';document.body.appendChild(z)})(this)" onmouseleave="var z=document.getElementById('imgZoomFloat');if(z)z.remove()">
+          <img src="figma-structure.png" alt="Figma 层级结构：Page → Section → Frame" style="width:100%;border-radius:8px;border:1px solid #e8e5df;display:block;" />
         </div>
       </div></div>
       <div class="step"><div class="step-num">3</div><div class="step-text"><b>如何复制链接</b><br>• <b>Frame / Section</b>：选中 → 右键 → Copy link<br>• <b>Page</b>：左上角页面列表 → 右键 → Copy link to page</div></div>
@@ -3454,13 +3455,13 @@ function imgToBase64(imgEl) {
   if (!w || !h) {
     throw new Error('图片尺寸为 0，无法转换');
   }
-  const maxW = 1500;
+  const maxW = 1200;
   const scale = Math.min(1, maxW / w);
   canvas.width = w * scale;
   canvas.height = h * scale;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
   const b64 = dataUrl.split(',')[1];
   if (b64.length < 100) {
     throw new Error('图片转换异常，base64 数据过短');
@@ -3589,6 +3590,7 @@ async function startCompare(btn) {
       figmaPendingImport = null;
     } catch (e) {
       showToast('Figma 导入失败，请检查网络后重试');
+      btn.classList.remove('loading');
       btn.disabled = false;
       btn.querySelector('.btn-arrow').classList.remove('hidden');
       btn.querySelector('.btn-spinner').classList.add('hidden');
@@ -3610,6 +3612,7 @@ async function startCompare(btn) {
 
   // Loading 态
   btn.disabled = true;
+  btn.classList.add('loading');
   btn.querySelector('.btn-arrow').classList.add('hidden');
   btn.querySelector('.btn-spinner').classList.remove('hidden');
   btn.childNodes.forEach(n => { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = '比对中… '; });
@@ -3660,6 +3663,7 @@ async function startCompare(btn) {
   btn.querySelector('.btn-arrow').classList.remove('hidden');
   btn.querySelector('.btn-spinner').classList.add('hidden');
   btn.childNodes.forEach(n => { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = '开始比对 '; });
+  btn.classList.remove('loading');
   btn.disabled = false;
   // 在首页新增项目卡片并保存到 Supabase
   const card = addProjectCard(projectName);
@@ -4917,7 +4921,9 @@ async function analyzePair(btnEl) {
     clearInterval(progressTimer);
     pair.querySelectorAll('.scan-overlay, .analyzing-mask').forEach(el => el.remove());
     btnEl.classList.remove('analyzing');
-    if (err.name === 'AbortError') showToast('分析请求超时，请检查网络后重试');
+    const errMsg = err.name === 'AbortError' ? '分析请求超时，请检查网络后重试' : (err.message || '分析失败');
+    showToast(errMsg);
+    console.error('分析失败详情:', err);
     // 重置按钮为可重新点击状态
     btnEl.innerHTML = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>';
 
