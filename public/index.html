@@ -717,16 +717,65 @@ tailwind.config = {
           <div class="glass-card stagger-2 p-6">
             <!-- 大上传区 -->
             <div class="flex items-stretch gap-4 mb-5">
-              <div class="flex-1 upload-zone upload-zone-new" onclick="document.getElementById('uploadDesign').click()">
-                <input type="file" id="uploadDesign" class="hidden" multiple accept="image/*" onchange="handleUploadPreview(this, 'previewDesign')" />
-                <div class="upload-placeholder" id="placeholderDesign">
-                  <div class="upload-icon-wrap" style="background:rgba(198,93,59,.08)">
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--color-terracotta)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+              <div class="flex-1 flex flex-col gap-2">
+                <div class="upload-zone upload-zone-new flex-1" onclick="document.getElementById('uploadDesign').click()">
+                  <input type="file" id="uploadDesign" class="hidden" multiple accept="image/*" onchange="handleUploadPreview(this, 'previewDesign')" />
+                  <div class="upload-placeholder" id="placeholderDesign">
+                    <div class="upload-icon-wrap" style="background:rgba(198,93,59,.08)">
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--color-terracotta)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                    </div>
+                    <div class="text-sm font-semibold text-gray-800 mb-0.5">上传设计稿</div>
+                    <div class="text-xs text-gray-400">截图 / 图片</div>
                   </div>
-                  <div class="text-sm font-semibold text-gray-800 mb-0.5">上传设计稿</div>
-                  <div class="text-xs text-gray-400">截图 / 图片</div>
+                  <div class="upload-preview hidden" id="previewDesign"></div>
                 </div>
-                <div class="upload-preview hidden" id="previewDesign"></div>
+                <!-- Figma 导入入口 -->
+                <div class="text-center">
+                  <span id="figmaToggleLink" class="text-xs text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer transition-colors" onclick="toggleFigmaPanel()">
+                    <svg class="inline-block w-3 h-3 mr-0.5 -mt-0.5" viewBox="0 0 38 57" fill="currentColor"><path d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z"/><path d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 0 1-19 0z"/><path d="M19 0v19h9.5a9.5 9.5 0 0 0 0-19H19z"/><path d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z"/><path d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z"/></svg>
+                    或从 Figma 导入
+                  </span>
+                </div>
+                <!-- Figma 导入面板（默认隐藏） -->
+                <div id="figmaPanel" class="hidden rounded-xl border border-gray-200 bg-white/80 backdrop-blur-sm p-4 transition-all" style="animation:fadeInUp .25s ease">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="text-sm font-semibold text-gray-700">从 Figma 导入</div>
+                    <span class="text-xs text-gray-400 hover:text-gray-600 cursor-pointer" onclick="toggleFigmaPanel()">收起</span>
+                  </div>
+                  <div class="mb-2.5">
+                    <label class="text-xs text-gray-500 mb-1 block">Figma 链接</label>
+                    <textarea id="figmaLinkInput" rows="2"
+                      placeholder="粘贴 Figma 链接（Frame / Section / Page 均可）"
+                      class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white/60 resize-none focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all"></textarea>
+                  </div>
+                  <div class="mb-3">
+                    <label class="text-xs text-gray-500 mb-1 block">Personal Access Token</label>
+                    <input id="figmaTokenInput" type="password"
+                      placeholder="figd_..."
+                      class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white/60 focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all" />
+                    <label class="flex items-center gap-1.5 mt-1.5 cursor-pointer select-none">
+                      <input type="checkbox" id="figmaRememberToken" checked class="accent-[var(--color-terracotta)]" />
+                      <span class="text-xs text-gray-400">记住 Token</span>
+                    </label>
+                  </div>
+                  <!-- Frame 勾选列表（Section/Page 时显示） -->
+                  <div id="figmaFrameList" class="hidden mb-3 max-h-48 overflow-y-auto border border-gray-100 rounded-lg p-2 bg-gray-50/50">
+                    <div class="flex items-center justify-between mb-2">
+                      <span class="text-xs font-medium text-gray-600" id="figmaFrameListTitle">选择要导入的 Frame</span>
+                      <label class="flex items-center gap-1 cursor-pointer select-none">
+                        <input type="checkbox" id="figmaSelectAll" checked onchange="toggleFigmaSelectAll(this.checked)" class="accent-[var(--color-terracotta)]" />
+                        <span class="text-xs text-gray-400">全选</span>
+                      </label>
+                    </div>
+                    <div id="figmaFrameItems"></div>
+                  </div>
+                  <button id="figmaImportBtn" onclick="importFromFigma()"
+                    class="w-full text-xs font-medium py-2 rounded-lg bg-[var(--color-terracotta)] text-white hover:opacity-90 transition-opacity flex items-center justify-center gap-1.5">
+                    <svg class="figma-btn-icon w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    导入设计稿
+                  </button>
+                  <div id="figmaImportStatus" class="hidden mt-2 text-xs text-center"></div>
+                </div>
               </div>
               <div class="flex-1 upload-zone upload-zone-new" style="border-color:rgba(154,154,144,.25)" onclick="document.getElementById('uploadDev').click()">
                 <input type="file" id="uploadDev" class="hidden" multiple accept="image/*" onchange="handleUploadPreview(this, 'previewDev')" />
@@ -3030,6 +3079,223 @@ function clearUpload(inputId, previewId) {
   updateStartButtons();
 }
 
+// ── Figma 导入 ──────────────────────────────────────────────────
+
+// 页面加载时恢复已保存的 Token
+(function initFigmaToken() {
+  const saved = localStorage.getItem('dc_figma_token');
+  if (saved) {
+    const el = document.getElementById('figmaTokenInput');
+    if (el) el.value = saved;
+  }
+})();
+
+function toggleFigmaPanel() {
+  const panel = document.getElementById('figmaPanel');
+  const link = document.getElementById('figmaToggleLink');
+  if (panel.classList.contains('hidden')) {
+    panel.classList.remove('hidden');
+    link.classList.add('hidden');
+  } else {
+    panel.classList.add('hidden');
+    link.classList.remove('hidden');
+    // 隐藏 Frame 列表
+    document.getElementById('figmaFrameList').classList.add('hidden');
+    setFigmaStatus('', '');
+  }
+}
+
+function parseFigmaUrl(url) {
+  try {
+    const match = url.trim().match(/figma\.com\/(?:design|file|proto)\/([a-zA-Z0-9]+)(?:\/[^?]*)?/);
+    if (!match) return null;
+    const fileKey = match[1];
+    const urlObj = new URL(url.trim());
+    const nodeIdRaw = urlObj.searchParams.get('node-id');
+    if (!nodeIdRaw) return null;
+    const nodeId = nodeIdRaw.replace(/-/g, ':');
+    return { fileKey, nodeId };
+  } catch (e) {
+    return null;
+  }
+}
+
+function setFigmaStatus(msg, type) {
+  const el = document.getElementById('figmaImportStatus');
+  if (!msg) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  el.className = 'mt-2 text-xs text-center ' + (type === 'error' ? 'text-red-500' : type === 'success' ? 'text-green-600' : 'text-gray-500');
+  el.textContent = msg;
+}
+
+function setFigmaBtnLoading(loading) {
+  const btn = document.getElementById('figmaImportBtn');
+  if (loading) {
+    btn.disabled = true;
+    btn.innerHTML = '<svg class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M12 3a9 9 0 1 1-6.36 2.64"/></svg> 导入中...';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> 导入设计稿';
+  }
+}
+
+function toggleFigmaSelectAll(checked) {
+  document.querySelectorAll('#figmaFrameItems input[type=checkbox]').forEach(cb => cb.checked = checked);
+}
+
+async function importFromFigma() {
+  const linkVal = document.getElementById('figmaLinkInput').value.trim();
+  const token = document.getElementById('figmaTokenInput').value.trim();
+
+  if (!linkVal) { setFigmaStatus('请输入 Figma 链接', 'error'); return; }
+  if (!token) { setFigmaStatus('请输入 Figma Personal Access Token', 'error'); return; }
+
+  const parsed = parseFigmaUrl(linkVal);
+  if (!parsed) { setFigmaStatus('链接格式不正确，请粘贴包含 node-id 的 Figma 链接', 'error'); return; }
+
+  // 保存 Token
+  if (document.getElementById('figmaRememberToken').checked) {
+    localStorage.setItem('dc_figma_token', token);
+  } else {
+    localStorage.removeItem('dc_figma_token');
+  }
+
+  setFigmaBtnLoading(true);
+  setFigmaStatus('正在连接 Figma...', 'info');
+
+  try {
+    // 先获取节点信息，判断是 Frame 还是 Section/Page
+    const listResp = await fetch('/api/figma-export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'list', fileKey: parsed.fileKey, nodeId: parsed.nodeId, token })
+    });
+    const listData = await listResp.json();
+
+    if (!listResp.ok) {
+      setFigmaStatus(listData.error || '获取节点信息失败', 'error');
+      setFigmaBtnLoading(false);
+      return;
+    }
+
+    let nodeIdsToExport = [];
+
+    if (listData.frames && listData.frames.length > 0) {
+      // Section/Page — 显示 Frame 列表让用户选择
+      setFigmaStatus(`找到 ${listData.frames.length} 个 Frame，请勾选后点击导入`, 'info');
+      showFigmaFrameList(listData.frames, parsed, token);
+      setFigmaBtnLoading(false);
+      return;
+    } else {
+      // 单个 Frame — 直接导出
+      nodeIdsToExport = [parsed.nodeId];
+    }
+
+    await exportFigmaImages(parsed.fileKey, nodeIdsToExport, token);
+  } catch (e) {
+    setFigmaStatus('导入失败，请检查网络后重试', 'error');
+    setFigmaBtnLoading(false);
+  }
+}
+
+function showFigmaFrameList(frames, parsed, token) {
+  const container = document.getElementById('figmaFrameItems');
+  const listWrap = document.getElementById('figmaFrameList');
+  const title = document.getElementById('figmaFrameListTitle');
+  title.textContent = `选择要导入的 Frame（共 ${frames.length} 个）`;
+
+  let html = '';
+  frames.forEach((f, i) => {
+    const sectionLabel = f.section ? `<span class="text-gray-400 mr-1">${escHtml(f.section)} /</span>` : '';
+    html += `<label class="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-gray-100 cursor-pointer select-none">
+      <input type="checkbox" checked data-node-id="${escHtml(f.id)}" class="accent-[var(--color-terracotta)]" />
+      <span class="text-xs text-gray-600">${sectionLabel}${escHtml(f.name)}</span>
+    </label>`;
+  });
+  container.innerHTML = html;
+  listWrap.classList.remove('hidden');
+
+  // 改按钮为「导入选中的 Frame」
+  const btn = document.getElementById('figmaImportBtn');
+  btn.disabled = false;
+  btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> 导入选中的 Frame';
+  btn.onclick = async function() {
+    const selected = [];
+    container.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
+      selected.push(cb.dataset.nodeId);
+    });
+    if (selected.length === 0) { setFigmaStatus('请至少选择一个 Frame', 'error'); return; }
+    setFigmaBtnLoading(true);
+    setFigmaStatus(`正在导出 ${selected.length} 个 Frame...`, 'info');
+    await exportFigmaImages(parsed.fileKey, selected, token);
+  };
+}
+
+async function exportFigmaImages(fileKey, nodeIds, token) {
+  try {
+    const resp = await fetch('/api/figma-export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'export', fileKey, nodeIds, token, scale: 2 })
+    });
+    const data = await resp.json();
+
+    if (!resp.ok) {
+      setFigmaStatus(data.error || '导出失败', 'error');
+      setFigmaBtnLoading(false);
+      return;
+    }
+
+    const successImages = (data.images || []).filter(img => img.image);
+    if (successImages.length === 0) {
+      setFigmaStatus('没有成功导出任何图片，请检查链接', 'error');
+      setFigmaBtnLoading(false);
+      return;
+    }
+
+    // 清除已有上传的设计稿
+    clearUpload('uploadDesign', 'previewDesign');
+
+    // 将 base64 图片转为 File 对象并写入 uploadedFiles
+    uploadedFiles['previewDesign'] = [];
+    for (const img of successImages) {
+      const byteChars = atob(img.image);
+      const byteArray = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteArray[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([byteArray], { type: 'image/png' });
+      const fileName = `figma-${img.nodeId.replace(':', '-')}.png`;
+      const file = new File([blob], fileName, { type: 'image/png' });
+      uploadedFiles['previewDesign'].push({ name: fileName, url: URL.createObjectURL(blob), file });
+    }
+
+    // 渲染预览
+    const preview = document.getElementById('previewDesign');
+    const placeholder = document.getElementById('placeholderDesign');
+    const zone = document.getElementById('uploadDesign').closest('.upload-zone');
+    renderUploadPreview('previewDesign', 'uploadDesign');
+    placeholder.classList.add('hidden');
+    preview.classList.remove('hidden');
+    zone.classList.add('has-files');
+    updateStartButtons();
+
+    // 收起 Figma 面板
+    setFigmaStatus('', '');
+    document.getElementById('figmaPanel').classList.add('hidden');
+    document.getElementById('figmaToggleLink').classList.remove('hidden');
+    document.getElementById('figmaFrameList').classList.add('hidden');
+
+    // 恢复按钮
+    setFigmaBtnLoading(false);
+    const btn = document.getElementById('figmaImportBtn');
+    btn.onclick = importFromFigma;
+    btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> 导入设计稿';
+
+  } catch (e) {
+    setFigmaStatus('导入失败，请检查网络后重试', 'error');
+    setFigmaBtnLoading(false);
+  }
+}
+
 // ── 按钮状态：两边都上传才可提交 ──────────────────────────────────
 function updateStartButtons() {
   // 冷启动版
@@ -3192,7 +3458,7 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
   if (bc) bc.textContent = name;
 }
 
-function startCompare(btn) {
+async function startCompare(btn) {
   const mode = btn.dataset.mode;
   const designKey = mode === 'cold' ? 'previewDesign' : 'previewDesignC';
   const devKey = mode === 'cold' ? 'previewDev' : 'previewDevC';
@@ -3207,49 +3473,92 @@ function startCompare(btn) {
   const nameInput = document.getElementById(mode === 'cold' ? 'taskNameCold' : 'taskNameHas');
   const projectName = (nameInput && nameInput.value.trim()) || '未命名项目';
 
+  const designFiles = uploadedFiles[designKey] || [];
+  const devFiles = uploadedFiles[devKey] || [];
+
   // Loading 态
   btn.disabled = true;
   btn.querySelector('.btn-arrow').classList.add('hidden');
   btn.querySelector('.btn-spinner').classList.remove('hidden');
   btn.childNodes.forEach(n => { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = '比对中… '; });
 
-  setTimeout(() => {
-    populateCanvasWithUploads(designKey, devKey, projectName);
-    btn.querySelector('.btn-arrow').classList.remove('hidden');
-    btn.querySelector('.btn-spinner').classList.add('hidden');
-    btn.childNodes.forEach(n => { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = '开始比对 '; });
-    btn.disabled = false;
-    // 在首页新增项目卡片并保存到 Supabase
-    const card = addProjectCard(projectName);
-    showPage('workbench');
-    setTimeout(() => canvasFit(), 300);
-    // 自动触发所有 pair 的 AI 分析（依次执行，避免并发）
-    setTimeout(() => autoAnalyzeAll(), 500);
+  // AI 自动配对（多图时）
+  if (designFiles.length > 1 && devFiles.length > 1) {
+    btn.childNodes.forEach(n => { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = 'AI 配对中… '; });
+    try {
+      const designB64s = await Promise.all(designFiles.map(f => fileToBase64(f.file)));
+      const devB64s = await Promise.all(devFiles.map(f => fileToBase64(f.file)));
 
-    // 异步保存到 Supabase
-    (async () => {
-      try {
-        const { data: proj } = await sb.from('projects').insert({ name: projectName, user_id: currentUserId }).select().single();
-        if (!proj) return;
-        currentProjectId = proj.id;
-        if (card) card.dataset.projectId = proj.id;
-        const designFiles = uploadedFiles[designKey] || [];
-        const devFiles = uploadedFiles[devKey] || [];
-        for (let i = 0; i < designFiles.length; i++) {
-          const p = `${proj.id}/design_${i}_${Date.now()}`;
-          await sb.storage.from('review-images').upload(p, designFiles[i].file);
-          const { data: { publicUrl } } = sb.storage.from('review-images').getPublicUrl(p);
-          await sb.from('images').insert({ project_id: proj.id, slot: 'design', page_index: i, file_name: designFiles[i].name, storage_path: p, public_url: publicUrl, user_id: currentUserId });
+      const matchResp = await fetch('/api/match-pairs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ designImages: designB64s, devImages: devB64s })
+      });
+      const matchData = await matchResp.json();
+
+      if (matchResp.ok && matchData.pairs?.length > 0) {
+        // 按配对结果重排文件
+        const reorderedDesign = [];
+        const reorderedDev = [];
+        const usedDesign = new Set();
+        const usedDev = new Set();
+
+        for (const [di, vi] of matchData.pairs) {
+          if (di < designFiles.length && vi < devFiles.length) {
+            reorderedDesign.push(designFiles[di]);
+            reorderedDev.push(devFiles[vi]);
+            usedDesign.add(di);
+            usedDev.add(vi);
+          }
         }
-        for (let i = 0; i < devFiles.length; i++) {
-          const p = `${proj.id}/dev_${i}_${Date.now()}`;
-          await sb.storage.from('review-images').upload(p, devFiles[i].file);
-          const { data: { publicUrl } } = sb.storage.from('review-images').getPublicUrl(p);
-          await sb.from('images').insert({ project_id: proj.id, slot: 'dev', page_index: i, file_name: devFiles[i].name, storage_path: p, public_url: publicUrl, user_id: currentUserId });
-        }
-      } catch (e) { console.error('Supabase save error:', e); }
-    })();
-  }, 800);
+        // 未配对的追加到末尾
+        designFiles.forEach((f, i) => { if (!usedDesign.has(i)) reorderedDesign.push(f); });
+        devFiles.forEach((f, i) => { if (!usedDev.has(i)) reorderedDev.push(f); });
+
+        uploadedFiles[designKey] = reorderedDesign;
+        uploadedFiles[devKey] = reorderedDev;
+      }
+    } catch (e) {
+      console.warn('AI 配对失败，使用默认顺序:', e);
+    }
+    btn.childNodes.forEach(n => { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = '比对中… '; });
+  }
+
+  populateCanvasWithUploads(designKey, devKey, projectName);
+  btn.querySelector('.btn-arrow').classList.remove('hidden');
+  btn.querySelector('.btn-spinner').classList.add('hidden');
+  btn.childNodes.forEach(n => { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = '开始比对 '; });
+  btn.disabled = false;
+  // 在首页新增项目卡片并保存到 Supabase
+  const card = addProjectCard(projectName);
+  showPage('workbench');
+  setTimeout(() => canvasFit(), 300);
+  // 自动触发所有 pair 的 AI 分析（依次执行，避免并发）
+  setTimeout(() => autoAnalyzeAll(), 500);
+
+  // 异步保存到 Supabase
+  (async () => {
+    try {
+      const savedDesignFiles = uploadedFiles[designKey] || [];
+      const savedDevFiles = uploadedFiles[devKey] || [];
+      const { data: proj } = await sb.from('projects').insert({ name: projectName, user_id: currentUserId }).select().single();
+      if (!proj) return;
+      currentProjectId = proj.id;
+      if (card) card.dataset.projectId = proj.id;
+      for (let i = 0; i < savedDesignFiles.length; i++) {
+        const p = `${proj.id}/design_${i}_${Date.now()}`;
+        await sb.storage.from('review-images').upload(p, savedDesignFiles[i].file);
+        const { data: { publicUrl } } = sb.storage.from('review-images').getPublicUrl(p);
+        await sb.from('images').insert({ project_id: proj.id, slot: 'design', page_index: i, file_name: savedDesignFiles[i].name, storage_path: p, public_url: publicUrl, user_id: currentUserId });
+      }
+      for (let i = 0; i < savedDevFiles.length; i++) {
+        const p = `${proj.id}/dev_${i}_${Date.now()}`;
+        await sb.storage.from('review-images').upload(p, savedDevFiles[i].file);
+        const { data: { publicUrl } } = sb.storage.from('review-images').getPublicUrl(p);
+        await sb.from('images').insert({ project_id: proj.id, slot: 'dev', page_index: i, file_name: savedDevFiles[i].name, storage_path: p, public_url: publicUrl, user_id: currentUserId });
+      }
+    } catch (e) { console.error('Supabase save error:', e); }
+  })();
 }
 
 // ── 在首页新增项目卡片 ──────────────────────────────────────────

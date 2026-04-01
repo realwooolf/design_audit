@@ -5,6 +5,12 @@
     },
     "api/verify.js": {
       "maxDuration": 60
+    },
+    "api/figma-export.js": {
+      "maxDuration": 30
+    },
+    "api/match-pairs.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
