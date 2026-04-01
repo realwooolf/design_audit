@@ -1257,6 +1257,7 @@ document.querySelectorAll('.dev-only').forEach(el => el.style.display = 'none');
   // showPage calls explicitly.
   window.canvasActivate   = function () { requestAnimationFrame(activate); };
   window.canvasDeactivate = deactivate;
+})();
 
 // ── State ──────────────────────────────────────────────────────
 let currentRole = 'designer'; // 'designer' | 'dev'
