@@ -3269,8 +3269,8 @@ function showFigmaImportHelp() {
       </div>
       <div class="step"><div class="step-num">1</div><div class="step-text"><b>为什么上传 Figma 链接</b><br>在 Figma 中复制的页面链接，粘贴后即可自动拉取设计稿图片，无需手动截图。</div></div>
       <div class="step"><div class="step-num">2</div><div class="step-text"><b>不同链接的导入范围</b><br>• <b>Frame 链接</b> → 导入 1 个画板<br>• <b>Section 链接</b> → 导入该分区下所有 Frame<br>• <b>Page 链接</b> → 导入该页面下所有顶层 Frame
-        <div style="margin-top:12px;">
-          <img src="figma-structure.png" alt="Figma 层级结构：Page → Section → Frame" style="width:100%;border-radius:8px;border:1px solid #e8e5df;cursor:zoom-in;" onclick="window.open(this.src,'_blank')" title="点击查看大图" />
+        <div style="margin-top:12px;overflow:hidden;border-radius:8px;">
+          <img src="figma-structure.png" alt="Figma 层级结构：Page → Section → Frame" style="width:100%;border-radius:8px;border:1px solid #e8e5df;transition:transform .3s ease;transform-origin:center;display:block;" onmouseenter="this.style.transform='scale(1.8)'" onmouseleave="this.style.transform='scale(1)'" />
         </div>
       </div></div>
       <div class="step"><div class="step-num">3</div><div class="step-text"><b>如何复制链接</b><br>• <b>Frame / Section</b>：选中 → 右键 → Copy link<br>• <b>Page</b>：左上角页面列表 → 右键 → Copy link to page</div></div>
