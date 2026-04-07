@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>设计-开发对话演示</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F4F1EA; min-height: 100vh; display: flex; justify-content: center; padding: 40px 20px; }
+  .container { width: 380px; }
+  .issue-card { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); border: 1px solid rgba(209,209,201,.3); }
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+  .badge-high { background: #FEF2F2; color: #DC2626; }
+  .tag-type { font-size: 10px; color: #9A9A90; background: #F5F5F0; padding: 2px 6px; border-radius: 4px; }
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
+  .compare-left, .compare-right { padding: 8px; border-radius: 8px; }
+  .compare-left { background: #F9FAFB; }
+  .compare-right { background: #FEF2F2; }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 10px; border-top: 1px solid #F0F0EC; margin-top: 10px; }
+  .meta-label { font-size: 10px; color: #9CA3AF; margin-bottom: 4px; }
+  .meta-value { font-size: 11px; color: #374151; display: flex; align-items: center; gap: 4px; }
+  .avatar-sm { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; flex-shrink: 0; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  /* 对话区 */
+  .conversation-toggle { font-size: 12px; font-weight: 500; color: #9CA3AF; cursor: pointer; padding: 8px 0 4px; user-select: none; }
+  .conversation { margin-top: 8px; }
+  .msg { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; }
+  .msg + .msg { margin-top: 6px; }
+  .msg-avatar { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .msg-body { flex: 1; min-width: 0; }
+  .msg-header { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; flex-wrap: wrap; }
+  .msg-name { font-size: 11px; font-weight: 600; color: #374151; }
+  .msg-role { font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 500; }
+  .msg-role-designer { background: #EFF6FF; color: #3B82F6; }
+  .msg-role-dev { background: #ECFDF5; color: #059669; }
+  .msg-time { font-size: 10px; color: #D1D5DB; }
+  .msg-text { font-size: 11px; color: #4B5563; background: #F9FAFB; border-radius: 8px; padding: 6px 10px; line-height: 1.6; }
+  .msg-text.pass { background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; }
+  .msg-text code { font-family: 'SF Mono', Monaco, monospace; font-size: 10px; background: #fff; border: 1px solid #E5E7EB; padding: 1px 4px; border-radius: 3px; }
+
+  /* 输入框 */
+  .comment-input { display: flex; gap: 6px; margin-top: 10px; align-items: center; }
+  .comment-input input { flex: 1; font-size: 11px; border: 1px solid #E5E7EB; border-radius: 8px; padding: 6px 10px; outline: none; background: #fff; }
+  .comment-input input:focus { border-color: #93C5FD; }
+  .comment-input button { font-size: 11px; padding: 5px 12px; border: none; border-radius: 8px; background: #C65D3B; color: #fff; cursor: pointer; font-weight: 500; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="issue-card">
+    <!-- 头部 -->
+    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+      <span class="badge badge-high">高优先级</span>
+      <span class="tag-type">视觉</span>
+    </div>
+    <div style="font-size:13px; font-weight:600; color:#1F2937; margin-bottom:2px;">按钮圆角与设计稿不一致</div>
+    <div style="font-size:10px; color:#D1D5DB; margin-bottom:8px;">创建于 2026-04-03</div>
+
+    <!-- 设计预期 vs 实际 -->
+    <div class="compare-grid">
+      <div class="compare-left">
+        <div style="font-size:10px; color:#6B7280; margin-bottom:4px;">设计稿预期</div>
+        <span style="font-family:monospace; font-size:11px; color:#1F2937;">cornerRadius: 12px</span>
+      </div>
+      <div class="compare-right">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span style="font-size:10px; color:#9CA3AF;">实际</span>
+          <span style="font-size:10px; color:#DC2626; font-weight:500;">&#10005; 不匹配</span>
+        </div>
+        <span style="font-family:monospace; font-size:11px; color:#DC2626;">圆角接近直角</span>
+      </div>
+    </div>
+
+    <!-- 元信息 -->
+    <div class="meta-grid">
+      <div>
+        <div class="meta-label">修改人员</div>
+        <div class="meta-value">
+          <div class="avatar-sm" style="background:#DCFCE7; color:#16A34A;">张</div>
+          张伟 (前端)
+        </div>
+      </div>
+      <div>
+        <div class="meta-label">修改进展</div>
+        <div class="meta-value">
+          <div class="status-dot" style="background:#22C55E;"></div>
+          <span style="color:#16A34A;">验收通过</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 对话区 -->
+    <div class="conversation-toggle">&#9662; 评论 · 7条</div>
+    <div class="conversation">
+
+      <div class="msg">
+        <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+        <div class="msg-body">
+          <div class="msg-header">
+            <span class="msg-name">小雨</span>
+            <span class="msg-role msg-role-designer">设计师</span>
+            <span class="msg-time">· 昨天 14:20</span>
+          </div>
+          <div class="msg-text">@张伟 这个按钮圆角设计稿是 12px，开发出来看起来是直角，麻烦改一下</div>
+        </div>
+      </div>
+
+      <div class="msg">
+        <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+        <div class="msg-body">
+          <div class="msg-header">
+            <span class="msg-name">张伟</span>
+            <span class="msg-role msg-role-dev">前端</span>
+            <span class="msg-time">· 昨天 14:35</span>
+          </div>
+          <div class="msg-text">收到，我看一下… 这个组件用的是全局 Button 样式，改了会影响其他页面，是只改这个还是全局统一？</div>
+        </div>
+      </div>
+
+      <div class="msg">
+        <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+        <div class="msg-body">
+          <div class="msg-header">
+            <span class="msg-name">小雨</span>
+            <span class="msg-role msg-role-designer">设计师</span>
+            <span class="msg-time">· 昨天 14:42</span>
+          </div>
+          <div class="msg-text">只改这个页面的，其他页面保持不变。可以加个 class 覆盖</div>
+        </div>
+      </div>
+
+      <div class="msg">
+        <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+        <div class="msg-body">
+          <div class="msg-header">
+            <span class="msg-name">张伟</span>
+            <span class="msg-role msg-role-dev">前端</span>
+            <span class="msg-time">· 昨天 16:10</span>
+          </div>
+          <div class="msg-text">已修改，加了 <code>.pathway-btn</code> 覆盖样式，圆角改为 12px，已上传核验图</div>
+        </div>
+      </div>
+
+      <div class="msg">
+        <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+        <div class="msg-body">
+          <div class="msg-header">
+            <span class="msg-name">小雨</span>
+            <span class="msg-role msg-role-designer">设计师</span>
+            <span class="msg-time">· 昨天 17:00</span>
+          </div>
+          <div class="msg-text">圆角 OK 了，但按钮高度好像矮了一点？设计稿是 48px</div>
+        </div>
+      </div>
+
+      <div class="msg">
+        <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+        <div class="msg-body">
+          <div class="msg-header">
+            <span class="msg-name">张伟</span>
+            <span class="msg-role msg-role-dev">前端</span>
+            <span class="msg-time">· 今天 09:30</span>
+          </div>
+          <div class="msg-text">高度也修了，48px，请再看一下</div>
+        </div>
+      </div>
+
+      <div class="msg">
+        <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+        <div class="msg-body">
+          <div class="msg-header">
+            <span class="msg-name">小雨</span>
+            <span class="msg-role msg-role-designer">设计师</span>
+            <span class="msg-time">· 今天 10:15</span>
+          </div>
+          <div class="msg-text pass">没问题了，验收通过 &#10003;</div>
+        </div>
+      </div>
+
+      <!-- 输入框 -->
+      <div class="comment-input">
+        <input type="text" placeholder="留言..." />
+        <button>发送</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -21,7 +21,7 @@ function toggleDropdown(id) {
     if (id.startsWith('sd-')) {
       const statuses = currentRole === 'dev'
         ? [{ key:'已修改', label:'已修改', dot:'bg-blue-500' }, { key:'暂不修改', label:'暂不修改', dot:'bg-yellow-500' }, { key:'请求说明', label:'请求说明', dot:'bg-indigo-500' }]
-        : getStatuses();
+        : [{ key:'验收通过', label:'验收通过', dot:'bg-green-500' }, { key:'继续修改', label:'继续修改', dot:'bg-orange-500' }];
       el.innerHTML = statuses.map(s =>
         `<div class="issue-dd-item" onclick="event.stopPropagation();selectStatusItem(this)"><span class="w-1.5 h-1.5 rounded-full ${s.dot} flex-shrink-0"></span>${s.label}</div>`
       ).join('');
@@ -79,9 +79,8 @@ function renderWorkbenchRole() {
     el.style.display = isDev ? 'none' : '';
   });
   // Sync status tabs and card labels to current role
-  renderStatusTabs();
+  // Note: rebuildList is called by setRole() after renderWorkbenchRole()
   syncStatusLabels();
-  rebuildList();
 }
 
 function selectIssue(id) {
@@ -284,11 +283,27 @@ function renderVerifyFail(slot, card, reason) {
   `;
 }
 
+// AI 校验通过后自动将状态更新为「待验收」
+function autoUpdateToVerify(card) {
+  if (!card) return;
+  card.dataset.status = '待验收';
+  card.classList.remove('opacity-60');
+  const trigger = card.querySelector('[id^="sd-"]')?.previousElementSibling;
+  if (trigger) {
+    const label = trigger.querySelector('span.flex-1');
+    if (label) { label.textContent = '待验收'; label.className = 'flex-1 text-purple-600'; }
+    const dot = trigger.querySelector('span.rounded-full');
+    if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-purple-500 flex-shrink-0';
+  }
+  updateStatusCounts();
+}
+
 function submitVerifyMock(slot, card) {
   const pass = Math.random() > 0.3;
   setTimeout(() => {
     if (pass) {
       renderVerifyPass(slot, card, '');
+      autoUpdateToVerify(card);
       showToast('AI 校验通过，已通知设计师确认');
     } else {
       const reason = VERIFY_FAIL_REASONS[Math.floor(Math.random() * VERIFY_FAIL_REASONS.length)];
@@ -325,7 +340,7 @@ async function submitVerify() {
   try {
     const [verifyB64, designB64] = await Promise.all([
       fileToBase64(verifySelectedFile),
-      Promise.resolve(imgToBase64(designInfo.img))
+      Promise.resolve(imgToBase64(designInfo.img).b64)
     ]);
     const issueTitle = card.querySelector('.text-xs.font-medium')?.textContent || '';
 
@@ -350,6 +365,7 @@ async function submitVerify() {
     const data = await resp.json();
     if (data.pass) {
       renderVerifyPass(slot, card, data.summary || '');
+      autoUpdateToVerify(card);
       showToast('AI 校验通过，已通知设计师确认');
     } else {
       renderVerifyFail(slot, card, data.details || data.summary || '修改未达到设计稿要求');
@@ -385,8 +401,6 @@ const DESIGNER_STATUSES = [
   { key:'待验收', label:'待验收', color:'text-purple-600', bg:'bg-purple-50 text-purple-600', dot:'bg-purple-500' },
   { key:'验收通过', label:'验收通过', color:'text-green-500', bg:'bg-green-50 text-green-500', dot:'bg-green-500' },
   { key:'继续修改', label:'继续修改', color:'text-orange-500', bg:'bg-orange-50 text-orange-500', dot:'bg-orange-500' },
-  { key:'暂不修改', label:'暂不修改', color:'text-yellow-600', bg:'bg-yellow-50 text-yellow-600', dot:'bg-yellow-500' },
-  { key:'请求说明', label:'请求说明', color:'text-indigo-500', bg:'bg-indigo-50 text-indigo-500', dot:'bg-indigo-500' },
 ];
 const DEV_STATUSES = [
   { key:'待修改', label:'待修改', color:'text-gray-500', bg:'bg-gray-100 text-gray-500', dot:'bg-gray-400' },
@@ -423,7 +437,7 @@ function syncStatusDropdowns() {
         `<div class="issue-dd-item" onclick="event.stopPropagation();selectStatusItem(this)"><span class="w-1.5 h-1.5 rounded-full ${s.dot} flex-shrink-0"></span>${s.key}</div>`
       ).join('');
     } else {
-      dd.innerHTML = DESIGNER_STATUSES.map(s =>
+      dd.innerHTML = [{ key:'验收通过', label:'验收通过', dot:'bg-green-500' }, { key:'继续修改', label:'继续修改', dot:'bg-orange-500' }].map(s =>
         `<div class="issue-dd-item" onclick="event.stopPropagation();selectStatusItem(this)"><span class="w-1.5 h-1.5 rounded-full ${s.dot} flex-shrink-0"></span>${s.label}</div>`
       ).join('');
     }
@@ -452,10 +466,22 @@ function updateStatusCounts() {
   const statuses = getStatuses();
   const counts = { '':allIssueCards.length };
   statuses.forEach(g => { counts[g.key] = allIssueCards.filter(c => getDisplayStatus(c.dataset.status) === g.key).length; });
+  // 需要红点的筛选项：设计师=待验收，开发=待修改
+  const dotKey = currentRole === 'dev' ? '待修改' : '待验收';
   document.querySelectorAll('#statusTabs .status-tab').forEach(btn => {
-    const val = btn.getAttribute('onclick').match(/'([^']*)'/)[1];
+    const onclickAttr = btn.getAttribute('onclick');
+    const match = onclickAttr ? onclickAttr.match(/'([^']*)'/): null;
+    const val = match ? match[1] : '';
     const span = btn.querySelector('.status-tab-count');
     if (span) span.textContent = counts[val] || 0;
+    // 红点逻辑
+    let dot = btn.querySelector('.status-tab-dot');
+    if (val === dotKey && (counts[val] || 0) > 0) {
+      if (!dot) { dot = document.createElement('span'); dot.className = 'status-tab-dot'; btn.appendChild(dot); }
+      dot.style.display = '';
+    } else if (dot) {
+      dot.style.display = 'none';
+    }
   });
 }
 
@@ -477,7 +503,9 @@ function switchStatus(status) {
   document.querySelectorAll('#statusTabs .status-tab').forEach(b => b.classList.remove('active'));
   const btns = document.querySelectorAll('#statusTabs .status-tab');
   btns.forEach(b => {
-    const val = b.getAttribute('onclick').match(/'([^']*)'/)[1];
+    const onclickAttr = b.getAttribute('onclick');
+    const match = onclickAttr ? onclickAttr.match(/'([^']*)'/): null;
+    const val = match ? match[1] : '';
     if (val === status) b.classList.add('active');
   });
   rebuildList();
@@ -485,6 +513,7 @@ function switchStatus(status) {
 
 function rebuildList() {
   const list = document.getElementById('issueList');
+  if (!list) return;
   // First call: collect all cards into persistent array
   if (!allIssueCards.length) {
     allIssueCards = Array.from(list.querySelectorAll('.issue-card'));
@@ -496,25 +525,21 @@ function rebuildList() {
     return na - nb;
   });
   // Detach all cards, then clear wrappers
-  allIssueCards.forEach(c => c.remove());
-  while (list.firstChild) list.removeChild(list.firstChild);
+  allIssueCards.forEach(c => { if (c.parentNode) c.parentNode.removeChild(c); });
+  list.innerHTML = '';
 
+  const body = document.createElement('div');
+  body.className = 'space-y-1.5';
   if (currentStatus) {
-    // Single status: flat list, no section headers
-    const body = document.createElement('div');
-    body.className = 'space-y-1.5';
-    allIssueCards.filter(c => getDisplayStatus(c.dataset.status) === currentStatus).forEach(c => { c.style.display = ''; body.appendChild(c); });
-    list.appendChild(body);
+    allIssueCards.filter(c => getDisplayStatus(c.dataset.status) === currentStatus).forEach(c => { c.style.display = ''; c.style.removeProperty('display'); body.appendChild(c); });
   } else {
-    // "全部": flat list, no section headers
-    const body = document.createElement('div');
-    body.className = 'space-y-1.5';
-    allIssueCards.forEach(c => { c.style.display = ''; body.appendChild(c); });
-    list.appendChild(body);
+    allIssueCards.forEach(c => { c.style.display = ''; c.style.removeProperty('display'); body.appendChild(c); });
   }
+  list.appendChild(body);
   applyFilters();
   updateStatusCounts();
   renderStats();
+  updateSubmitBtnVisibility();
 }
 
 function applyFilters() {
@@ -623,6 +648,24 @@ document.addEventListener('keydown', function(e) {
   if (sendBtn) sendBtn.click();
 });
 
+// ── 回退状态显示 ─────────────────────────────────────────────
+function revertStatus(card, prevStatus) {
+  card.dataset.status = prevStatus;
+  if (prevStatus === '验收通过') card.classList.add('opacity-60');
+  else card.classList.remove('opacity-60');
+  const displayStatus = currentRole === 'dev' ? (STATUS_TO_DEV[prevStatus] || prevStatus) : prevStatus;
+  const colorMap = { '待分配':'text-gray-500', '待修改':'text-blue-500', '待验收':'text-purple-600', '验收通过':'text-green-500', '继续修改':'text-orange-500', '已修改':'text-blue-500', '暂不修改':'text-yellow-600', '请求说明':'text-indigo-500' };
+  const dotMap = { '待分配':'bg-gray-400', '待修改':'bg-blue-500', '待验收':'bg-purple-500', '验收通过':'bg-green-500', '继续修改':'bg-orange-500', '已修改':'bg-blue-500', '暂不修改':'bg-yellow-500', '请求说明':'bg-indigo-500' };
+  const trigger = card.querySelector('[id^="sd-"]')?.previousElementSibling;
+  if (trigger) {
+    const label = trigger.querySelector('span.flex-1');
+    if (label) { label.textContent = displayStatus; label.className = 'flex-1 ' + (colorMap[displayStatus] || 'text-gray-600'); }
+    const dot = trigger.querySelector('span.rounded-full');
+    if (dot) dot.className = `w-1.5 h-1.5 rounded-full ${dotMap[displayStatus] || 'bg-gray-400'} flex-shrink-0`;
+  }
+  updateStatusCounts();
+}
+
 // ── Dropdown selection handlers ─────────────────────────────────
 function selectStatusItem(el) {
   const dd = el.closest('.issue-dd');
@@ -645,22 +688,28 @@ function selectStatusItem(el) {
     };
     return;
   }
-  // 「暂不修改」需要填写原因
+  // 「暂不修改」需要填写原因 — 立即更新状态，取消回退
   if (text === '暂不修改') {
+    const card = el.closest('.issue-card');
+    const prevStatus = card ? card.dataset.status : '';
+    applyStatusChange(el, text);
+
     const mask = document.getElementById('confirmDialog');
     document.getElementById('confirmTitle').textContent = '暂不修改';
     document.getElementById('confirmDesc').innerHTML = '<textarea id="remarkInput" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-400 resize-none focus:outline-none focus:border-blue-400 mt-1" rows="3" placeholder="请填写暂不修改的原因…"></textarea>';
     document.getElementById('confirmBtn').textContent = '确认提交';
     document.getElementById('confirmBtn').className = 'btn-primary';
     mask.classList.add('open');
-    _confirmCb = function() {
-      applyStatusChange(el, text);
-      closeConfirm();
-    };
+    _confirmCb = function() { closeConfirm(); };
+    _cancelCb = function() { if (card && prevStatus) revertStatus(card, prevStatus); };
     return;
   }
-  // 「请求说明」需要填写内容
+  // 「请求说明」需要填写内容 — 立即更新状态，取消回退，确认同步评论
   if (text === '请求说明') {
+    const card = el.closest('.issue-card');
+    const prevStatus = card ? card.dataset.status : '';
+    applyStatusChange(el, text);
+
     const mask = document.getElementById('confirmDialog');
     document.getElementById('confirmTitle').textContent = '请求说明';
     document.getElementById('confirmDesc').innerHTML = '<textarea id="remarkInput" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 placeholder-gray-400 resize-none focus:outline-none focus:border-blue-400 mt-1" rows="3" placeholder="请描述需要设计师说明的内容…"></textarea>';
@@ -668,9 +717,41 @@ function selectStatusItem(el) {
     document.getElementById('confirmBtn').className = 'btn-primary';
     mask.classList.add('open');
     _confirmCb = function() {
-      applyStatusChange(el, text);
+      // 同步备注到评论区
+      const remarkText = document.getElementById('remarkInput')?.value?.trim();
+      if (remarkText && card) {
+        const tl = card.querySelector('[id^="tl-"]');
+        if (tl) {
+          const now = new Date();
+          const h = now.getHours(), m = String(now.getMinutes()).padStart(2,'0');
+          const timeStr = `今天 ${h}:${m} ${h < 12 ? 'AM' : 'PM'}`;
+          const item = document.createElement('div');
+          item.className = 'flex items-start gap-2 fade-in';
+          item.innerHTML = `<div class="timeline-avatar bg-indigo-100 text-indigo-700">我</div><div class="flex-1 min-w-0"><div class="text-xs text-indigo-600 font-medium mb-0.5">请求说明</div><div class="text-xs text-gray-800">${escHtml(remarkText)}</div><div class="text-xs text-gray-400 mt-0.5">${escHtml(timeStr)}</div></div>`;
+          tl.appendChild(item);
+          // 展开评论区
+          const section = tl.closest('.card-timeline-section');
+          if (section) section.style.display = 'block';
+          const toggleBtn = section?.previousElementSibling;
+          if (toggleBtn) {
+            const arrow = toggleBtn.querySelector('.tl-arrow');
+            if (arrow) arrow.textContent = '▾';
+            const count = tl.querySelectorAll('.flex.items-start').length;
+            toggleBtn.innerHTML = '';
+            if (arrow) toggleBtn.appendChild(arrow);
+            toggleBtn.appendChild(document.createTextNode(` 评论 · ${count}条`));
+          }
+          // 保存到 Supabase
+          if (currentProjectId) {
+            const num = parseInt(card.id.replace('issue-', ''));
+            sb.from('issues').select('id').eq('project_id', currentProjectId).eq('issue_number', num).single()
+              .then(({ data }) => { if (data) return sb.from('comments').insert({ issue_id: data.id, text: `[请求说明] ${remarkText}` }); });
+          }
+        }
+      }
       closeConfirm();
     };
+    _cancelCb = function() { if (card && prevStatus) revertStatus(card, prevStatus); };
     return;
   }
   // 「验收通过」需要确认
@@ -818,14 +899,9 @@ function renderFeishuPicker(el, query) {
   const itemsHtml = filtered.length
     ? filtered.map(u => {
         const onlineDot = u.online ? `<div class="online-dot" style="background:#22c55e"></div>` : `<div class="online-dot" style="background:#d1d5db"></div>`;
-        const tagHtml = u.tag === '项目组'
-          ? `<span class="utag" style="background:#eff6ff;color:#3b82f6;">项目组</span>`
-          : u.tag === '外部'
-          ? `<span class="utag" style="background:#fff7ed;color:#f97316;">外部</span>`
-          : `<span class="utag" style="background:#eff6ff;color:#3b82f6;">内部</span>`;
         return `<div class="feishu-picker-item" onclick="event.stopPropagation();feishuPickerSelect(this,'${ddId}','${u.name}','${u.role}','${u.initials}','${u.bg}')">
           <div class="feishu-picker-avatar"><div class="avatar-circle" style="background:${u.bg}">${u.initials}</div>${onlineDot}</div>
-          <div class="feishu-picker-info"><div class="name-row"><span class="uname">${u.name}</span>${tagHtml}</div><div class="udept">${u.role} · ${u.dept}</div></div>
+          <div class="feishu-picker-info"><div class="name-row"><span class="uname">${u.name}</span></div><div class="udept">${u.role} · ${u.dept}</div></div>
         </div>`;
       }).join('')
     : `<div class="feishu-picker-empty">未找到匹配成员</div>`;
@@ -1399,7 +1475,7 @@ async function autoDetectFigmaLink() {
     const listData = await listResp.json();
 
     if (!listResp.ok) {
-      setFigmaStatus(listData.error || '获取节点信息失败', 'error');
+      setFigmaStatus(listData.error || '获取节点信息失败', 'error', { retry: true });
       return;
     }
 
@@ -1407,14 +1483,16 @@ async function autoDetectFigmaLink() {
       // Section/Page — 显示 Frame 列表让用户勾选
       setFigmaStatus(`找到 ${listData.frames.length} 个 Frame，勾选后点击「开始比对」`, 'success');
       showFigmaFrameList(listData.frames, parsed, token);
+      updateStartButtons();
     } else {
       // 单个 Frame — 暂存，等开始比对时自动导入
       figmaPendingImport = { fileKey: parsed.fileKey, nodeIds: [parsed.nodeId], token };
       setFigmaStatus('✓ Frame 链接已识别，上传开发稿后即可比对', 'success');
       document.getElementById('figmaFrameList').classList.add('hidden');
+      updateStartButtons();
     }
   } catch (e) {
-    setFigmaStatus('检测失败，请检查网络', 'error');
+    setFigmaStatus('检测失败，请检查网络', 'error', { retry: true });
   }
 }
 
@@ -1472,13 +1550,15 @@ function showFigmaImportHelp() {
         <h3 style="margin:0;">如何导入设计稿</h3>
         <span class="text-gray-400 hover:text-gray-600 cursor-pointer text-lg leading-none" onclick="this.closest('.figma-modal-overlay').remove()">&times;</span>
       </div>
-      <div class="step"><div class="step-num">1</div><div class="step-text"><b>为什么上传 Figma 链接</b><br>在 Figma 中复制的页面链接，粘贴后即可自动拉取设计稿图片，无需手动截图。</div></div>
-      <div class="step"><div class="step-num">2</div><div class="step-text"><b>不同链接的导入范围</b><br>• <b>Frame 链接</b> → 导入 1 个画板<br>• <b>Section 链接</b> → 导入该分区下所有 Frame<br>• <b>Page 链接</b> → 导入该页面下所有顶层 Frame
-        <div style="margin-top:12px;border-radius:8px;">
-          <img src="figma-structure.png" alt="Figma 层级结构：Page → Section → Frame" style="width:100%;max-width:480px;border-radius:8px;border:1px solid #e8e5df;display:block;" />
+      <div class="step"><div class="step-num">1</div><div class="step-text"><b>打开设计稿所在的 Figma 文件</b><br>在浏览器或 Figma 客户端中打开你要上传的设计稿所在的 Figma 文件。</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text"><b>复制文件链接</b><br>• <b>Frame / Section</b>：选中 → 右键 → Copy/Paste as → Copy link to selection<br>• <b>Page</b>：左上角页面列表 → 右键 → Copy link to page
+        <div style="margin-top:10px;padding:8px 12px;background:#F9F7F4;border-radius:6px;border:1px solid #E8E5DF;font-size:12px;color:#8A8A82;line-height:1.6;">
+          <b style="color:#6B6B64;">备注：不同链接的导入范围</b><br>• Frame 链接 → 导入 1 个画板<br>• Section 链接 → 导入该分区下所有 Frame<br>• Page 链接 → 导入该页面下所有顶层 Frame
+          <div style="margin-top:8px;">
+            <img src="figma-structure.png" alt="Figma 层级结构：Page → Section → Frame" style="width:100%;max-width:480px;border-radius:6px;border:1px solid #e8e5df;display:block;" />
+          </div>
         </div>
       </div></div>
-      <div class="step"><div class="step-num">3</div><div class="step-text"><b>如何复制链接</b><br>• <b>Frame / Section</b>：选中 → 右键 → Copy link<br>• <b>Page</b>：左上角页面列表 → 右键 → Copy link to page</div></div>
     </div>`;
   document.body.appendChild(overlay);
 }
@@ -1498,12 +1578,20 @@ function parseFigmaUrl(url) {
   }
 }
 
-function setFigmaStatus(msg, type) {
+function setFigmaStatus(msg, type, opts) {
   const el = document.getElementById('figmaImportStatus');
+  if (!el) return;
   if (!msg) { el.classList.add('hidden'); return; }
   el.classList.remove('hidden');
-  el.className = 'mt-2 text-xs text-center ' + (type === 'error' ? 'text-red-500' : type === 'success' ? 'text-green-600' : 'text-gray-500');
+  el.className = 'mt-2 text-xs text-center ' + (type === 'error' ? 'text-red-500' : type === 'success' ? 'text-green-600' : type === 'loading' ? 'text-gray-500 animate-pulse' : 'text-gray-500');
   el.textContent = msg;
+  if (opts && opts.retry) {
+    const retryBtn = document.createElement('span');
+    retryBtn.textContent = '  重试';
+    retryBtn.style.cssText = 'color:var(--color-terracotta);cursor:pointer;text-decoration:underline;margin-left:6px;';
+    retryBtn.onclick = function(e) { e.stopPropagation(); autoDetectFigmaLink(); };
+    el.appendChild(retryBtn);
+  }
 }
 
 // setFigmaBtnLoading 已移除，导入按钮已删除
@@ -1538,6 +1626,7 @@ function showFigmaFrameList(frames, parsed, token) {
 // 获取 Frame 列表中勾选的 nodeIds
 function getSelectedFigmaFrameIds() {
   const container = document.getElementById('figmaFrameItems');
+  if (!container) return [];
   const selected = [];
   container.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
     selected.push(cb.dataset.nodeId);
@@ -1545,21 +1634,134 @@ function getSelectedFigmaFrameIds() {
   return selected;
 }
 
+// 全局存储 Figma 设计属性数据，供 AI 分析时使用
+let figmaDesignProps = null;
+
+// 从 Figma 节点树构建 name → 相对坐标（百分比）的扁平映射
+// frameBox 是根 Frame 的 absoluteBoundingBox {x, y, width, height}
+// 每个 key 存候选数组（同名节点可能有多个：按钮 vs 容器）
+function buildFigmaPositionMap(nodeTree, frameBox) {
+  const map = {};
+  if (!nodeTree || !frameBox || !frameBox.width || !frameBox.height) return map;
+
+  function addToMap(key, pos) {
+    if (!key) return;
+    if (!map[key]) map[key] = [];
+    map[key].push(pos);
+  }
+
+  function walk(node) {
+    if (!node) return;
+    if (node.x != null && node.y != null && node.width != null && node.height != null) {
+      const relX = node.x - frameBox.x;
+      const relY = node.y - frameBox.y;
+      const left = Math.max(0, Math.min(100, (relX / frameBox.width) * 100));
+      const top = Math.max(0, Math.min(100, (relY / frameBox.height) * 100));
+      const width = Math.max(1, Math.min(100 - left, (node.width / frameBox.width) * 100));
+      const height = Math.max(1, Math.min(100 - top, (node.height / frameBox.height) * 100));
+      const pos = {
+        left: left.toFixed(2) + '%',
+        top: top.toFixed(2) + '%',
+        width: width.toFixed(2) + '%',
+        height: height.toFixed(2) + '%',
+        _area: width * height // 面积，用于优先选小元素
+      };
+      const key = (node.name || '').trim().toLowerCase();
+      addToMap(key, pos);
+      // 原名（保留大小写）
+      const origKey = (node.name || '').trim();
+      if (origKey && origKey.toLowerCase() !== origKey) addToMap(origKey, pos);
+      // 智能剪枝的父节点名
+      if (node._parentName) {
+        addToMap(node._parentName.trim().toLowerCase(), pos);
+        const parentOrig = node._parentName.trim();
+        if (parentOrig.toLowerCase() !== parentOrig) addToMap(parentOrig, pos);
+      }
+    }
+    if (Array.isArray(node.children)) {
+      node.children.forEach(walk);
+    }
+  }
+
+  walk(nodeTree);
+  return map;
+}
+
+// 从候选数组中选面积最小的（小元素 = 具体控件，大元素 = 容器）
+function pickSmallest(candidates) {
+  if (!candidates || candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+  return candidates.reduce((best, c) => (c._area < best._area ? c : best));
+}
+
+// 根据 Gemini 返回的 element 名称在 Figma 位置映射中查找最佳匹配
+function matchFigmaPosition(elementName, posMap) {
+  if (!elementName || !posMap) return null;
+  const name = elementName.trim().toLowerCase();
+
+  // 1. 精确匹配 → 选最小元素
+  if (posMap[name]) return pickSmallest(posMap[name]);
+
+  // 2. 包含匹配：Figma 节点名包含 element 名，或反过来
+  let bestCandidates = null;
+  let bestScore = 0;
+  for (const [key, candidates] of Object.entries(posMap)) {
+    const k = key.toLowerCase();
+    if (k.includes(name) || name.includes(k)) {
+      const score = name.includes(k) ? k.length : k.length * 0.8;
+      if (score > bestScore) {
+        bestScore = score;
+        bestCandidates = candidates;
+      }
+    }
+  }
+  if (bestCandidates) return pickSmallest(bestCandidates);
+
+  // 3. 关键词匹配：拆分 element 名称为关键词，找重合度最高的
+  const keywords = name.split(/[\s\/\-_,，。]+/).filter(w => w.length > 1);
+  if (keywords.length === 0) return null;
+
+  bestScore = 0;
+  for (const [key, candidates] of Object.entries(posMap)) {
+    const k = key.toLowerCase();
+    const matched = keywords.filter(kw => k.includes(kw)).length;
+    if (matched > bestScore) {
+      bestScore = matched;
+      bestCandidates = candidates;
+    }
+  }
+  return bestScore > 0 ? pickSmallest(bestCandidates) : null;
+}
+
 async function exportFigmaImages(fileKey, nodeIds, token) {
   try {
+    // 并行请求：导出图片 + 获取设计属性
     const _figmaExportAC = new AbortController();
     const _figmaExportTimeout = setTimeout(() => _figmaExportAC.abort(), 120000);
-    const resp = await fetch('/api/figma-export', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'export', fileKey, nodeIds, token, scale: 2 }),
-      signal: _figmaExportAC.signal,
-    });
+    const [resp, propsResp] = await Promise.all([
+      fetch('/api/figma-export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'export', fileKey, nodeIds, token, scale: 2 }),
+        signal: _figmaExportAC.signal,
+      }),
+      fetch('/api/figma-export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'props', fileKey, nodeIds, token }),
+      }).catch(() => null)
+    ]);
     clearTimeout(_figmaExportTimeout);
     const data = await resp.json();
 
     if (!resp.ok) {
       throw new Error(data.error || '导出失败');
+    }
+
+    // 保存设计属性（即使获取失败也不阻断流程）
+    if (propsResp?.ok) {
+      const propsData = await propsResp.json().catch(() => null);
+      if (propsData?.props) figmaDesignProps = propsData.props;
     }
 
     const successImages = (data.images || []).filter(img => img.image);
@@ -1659,18 +1861,79 @@ function imgToBase64(imgEl) {
   if (!w || !h) {
     throw new Error('图片尺寸为 0，无法转换');
   }
-  const maxW = 1200;
+  const maxW = 2048;
   const scale = Math.min(1, maxW / w);
   canvas.width = w * scale;
   canvas.height = h * scale;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(imgEl, 0, 0, canvas.width, canvas.height);
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
-  const b64 = dataUrl.split(',')[1];
+  let dataUrl = canvas.toDataURL('image/png');
+  let b64 = dataUrl.split(',')[1];
+  let mime = 'image/png';
+  // PNG 超过 3MB 时降级为高质量 JPEG（避免超出 Vercel 请求体限制）
+  if (b64.length > 3 * 1024 * 1024) {
+    dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    b64 = dataUrl.split(',')[1];
+    mime = 'image/jpeg';
+  }
   if (b64.length < 100) {
     throw new Error('图片转换异常，base64 数据过短');
   }
-  return b64;
+  return { b64, mime };
+}
+
+// 图片预处理：叠加坐标网格辅助 Gemini 空间定位（坐标系 0-1000，与 box_2d 一致）
+function addGridOverlay(b64) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const cvs = document.createElement('canvas');
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      cvs.width = w;
+      cvs.height = h;
+      const ctx = cvs.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      // 5% 细分网格线（对应 0-1000 中每 50 单位）
+      ctx.strokeStyle = 'rgba(255,0,0,0.10)';
+      ctx.lineWidth = 1;
+      for (let p = 5; p < 100; p += 5) {
+        if (p % 10 === 0) continue;
+        const x = Math.round(w * p / 100);
+        const y = Math.round(h * p / 100);
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      // 10% 主网格线（对应 0-1000 中每 100 单位）
+      ctx.strokeStyle = 'rgba(255,0,0,0.25)';
+      ctx.lineWidth = 1;
+      for (let p = 10; p < 100; p += 10) {
+        const x = Math.round(w * p / 100);
+        const y = Math.round(h * p / 100);
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+      }
+
+      // 交叉点坐标标注（使用 0-1000 坐标系，格式：x,y）
+      const fontSize = Math.max(10, Math.min(16, Math.round(Math.min(w, h) / 60)));
+      ctx.font = `${fontSize}px monospace`;
+      ctx.fillStyle = 'rgba(255,0,0,0.45)';
+      for (let px = 10; px <= 90; px += 10) {
+        for (let py = 10; py <= 90; py += 10) {
+          const x = Math.round(w * px / 100);
+          const y = Math.round(h * py / 100);
+          // 标签用 0-1000 坐标系：px*10, py*10
+          ctx.fillText(`${px * 10},${py * 10}`, x + 2, y - 2);
+        }
+      }
+
+      resolve(cvs.toDataURL('image/png'));
+    };
+    img.onerror = () => resolve(b64); // fallback: 返回原图
+    img.src = b64.startsWith('data:') ? b64 : 'data:image/png;base64,' + b64;
+  });
 }
 
 // ── 用真实上传图片填充画布 ──────────────────────────────────────
@@ -1695,12 +1958,18 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
 
     pageWrapper.innerHTML = '<div style="color:#9A9A90;font-size:11px;margin-bottom:8px;">页面 ' + (i + 1) + '</div>' +
       '<div class="pair-col-header" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">' +
-      '<span style="font-size:10px;font-weight:600;color:#9A9A90;letter-spacing:.05em;">设计稿</span>' +
-      '<span style="font-size:10px;font-weight:600;color:#9A9A90;letter-spacing:.05em;">开发稿</span></div>';
+      '<span style="font-size:13px;font-weight:600;color:#6B6B64;letter-spacing:.05em;">设计稿</span>' +
+      '<span style="font-size:13px;font-weight:600;color:#6B6B64;letter-spacing:.05em;">开发稿</span></div>';
 
     const pair = document.createElement('div');
     pair.className = 'canvas-pair';
     pair.style.position = 'relative';
+
+    // 从设计稿文件名提取 Figma nodeId（格式: figma-{nodeId}.png）
+    if (designFiles[i]?.name) {
+      const nm = designFiles[i].name.match(/figma-(.+)\.png$/);
+      if (nm) pair.dataset.figmaNodeId = nm[1].replace('-', ':');
+    }
 
     // Design image
     const dWrap = document.createElement('div');
@@ -1783,6 +2052,7 @@ async function startCompare(btn) {
 
     // 显示导入状态（在 Figma tab 内显示提取进度）
     btn.disabled = true;
+    btn.classList.add('loading');
     btn.querySelector('.btn-arrow').classList.add('hidden');
     btn.querySelector('.btn-spinner').classList.remove('hidden');
     btn.childNodes.forEach(n => { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = '导入设计稿… '; });
@@ -1794,8 +2064,9 @@ async function startCompare(btn) {
       figmaPendingImport = null;
     } catch (e) {
       showToast('Figma 导入失败，请检查网络后重试');
-      btn.classList.remove('loading');
+      setFigmaStatus('导入失败，请检查网络后重试', 'error', { retry: true });
       btn.disabled = false;
+      btn.classList.remove('loading');
       btn.querySelector('.btn-arrow').classList.remove('hidden');
       btn.querySelector('.btn-spinner').classList.add('hidden');
       btn.childNodes.forEach(n => { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = '开始比对 '; });
@@ -1907,6 +2178,14 @@ async function startCompare(btn) {
 }
 
 // ── 提交走查申请 ──────────────────────────────────────────────────
+function updateSubmitBtnVisibility() {
+  const btn = document.getElementById('submitReviewBtn');
+  if (!btn) return;
+  if (currentRole !== 'dev') { btn.style.display = 'none'; return; }
+  const hasReady = allIssueCards.some(c => c.dataset.status === '待验收');
+  btn.style.display = hasReady ? 'block' : 'none';
+}
+
 function submitReviewRequest() {
   // 统计"已修改"（canonical=待验收）的问题数量
   const readyCount = allIssueCards.filter(c => c.dataset.status === '待验收').length;
@@ -1949,7 +2228,7 @@ function timeAgo(dateStr) {
 }
 
 // ── 在首页新增项目卡片 ──────────────────────────────────────────
-function addProjectCard(name, reviewStatus, createdAt) {
+function addProjectCard(name, reviewStatus, createdAt, prepend = true) {
   const grid = document.getElementById('projectGrid');
   if (!grid) return;
 
@@ -1965,8 +2244,8 @@ function addProjectCard(name, reviewStatus, createdAt) {
   const card = document.createElement('div');
   card.className = 'project-card project-card-new';
   card.innerHTML = `
-    <div class="p-5">
-      <div class="flex items-start justify-between cursor-pointer" onclick="showPage('workbench')">
+    <div class="p-5 cursor-pointer" onclick="showPage('workbench')">
+      <div class="flex items-start justify-between">
         <div class="flex items-center gap-3">
           <div class="project-icon" style="background:${c.bg}">
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="${c.stroke}" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2" stroke-linecap="round"/></svg>
@@ -1991,8 +2270,12 @@ function addProjectCard(name, reviewStatus, createdAt) {
       </div>
     </div>`;
 
-  // 插入到网格最前面
-  grid.insertBefore(card, grid.firstChild);
+  // 插入到网格
+  if (prepend) {
+    grid.insertBefore(card, grid.firstChild);
+  } else {
+    grid.appendChild(card);
+  }
 
   // 更新项目数量 & 显示项目列表
   updateProjectCount();
@@ -2178,6 +2461,11 @@ function showPage(name) {
     showOnboardingGuide();
   } else {
     window.canvasDeactivate?.();
+    // 离开工作台时取消 Realtime 订阅
+    if (window._issueSubscription) {
+      sb.removeChannel(window._issueSubscription);
+      window._issueSubscription = null;
+    }
   }
 }
 
@@ -2225,8 +2513,8 @@ function dismissGuide() {
 function setRole(role) {
   currentRole = role;
   const isDesigner = role === 'designer';
-  document.getElementById('roleDesigner').className = 'flex-1 text-xs py-1 rounded-md font-medium transition-all ' + (isDesigner ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500');
-  document.getElementById('roleDev').className = 'flex-1 text-xs py-1 rounded-md font-medium transition-all ' + (!isDesigner ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500');
+  document.getElementById('roleDesigner').className = 'text-xs px-2.5 py-1 rounded-md font-medium transition-all whitespace-nowrap ' + (isDesigner ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500');
+  document.getElementById('roleDev').className = 'text-xs px-2.5 py-1 rounded-md font-medium transition-all whitespace-nowrap ' + (!isDesigner ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500');
   // 头像显示邮箱首字母，颜色跟随角色
   document.getElementById('userAvatar').className = 'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer hover:ring-2 transition-all ' + (isDesigner ? 'bg-blue-100 text-blue-700 hover:ring-blue-300' : 'bg-green-100 text-green-700 hover:ring-green-300');
   // 角色标签不再显示文字（切换按钮已指示当前角色）
@@ -2315,9 +2603,11 @@ function deleteIssue(id, e) {
     }
   };
 }
-function confirmAction() { if (_confirmCb) _confirmCb(); }
+let _cancelCb = null;
+function confirmAction() { if (_confirmCb) { _cancelCb = null; _confirmCb(); } }
 function closeConfirm() {
   document.getElementById('confirmDialog').classList.remove('open');
+  if (_cancelCb) { _cancelCb(); _cancelCb = null; }
   _confirmCb = null;
 }
 
@@ -2333,15 +2623,17 @@ async function loadProjectsFromDB() {
       (issues || []).forEach(i => { issueCountMap[i.project_id] = (issueCountMap[i.project_id] || 0) + 1; });
 
       projects.forEach(p => {
-        const card = addProjectCard(p.name, p.review_status || '进行中', p.created_at);
+        const card = addProjectCard(p.name, p.review_status || '进行中', p.created_at, false);
         if (card) {
           card.dataset.projectId = p.id;
           // 显示真实 issue 数量
           const countSpan = card.querySelector('.issue-count-num');
           if (countSpan) countSpan.textContent = issueCountMap[p.id] || 0;
         }
-        const clickArea = card.querySelector('[onclick]');
-        if (clickArea) clickArea.setAttribute('onclick', `loadProject('${p.id}')`);
+        if (card) {
+          const clickArea = card.querySelector('[onclick]');
+          if (clickArea) clickArea.setAttribute('onclick', `loadProject('${p.id}')`);
+        }
       });
     }
   } catch (e) { console.error('Load projects error:', e); }
@@ -2502,7 +2794,13 @@ async function loadProject(projectId) {
               const anno = document.createElement('div');
               anno.className = 'issue-anno ' + pClass;
               anno.dataset.issueId = issueId;
-              anno.style.cssText = `left:${issue.area_left};top:${issue.area_top};width:${issue.area_width};height:${issue.area_height};`;
+              // 支持设计稿/开发稿独立坐标，fallback 到通用坐标
+              const isDesign = wrap.dataset.type === 'design';
+              const aLeft = isDesign ? (issue.design_area_left || issue.area_left) : issue.area_left;
+              const aTop = isDesign ? (issue.design_area_top || issue.area_top) : issue.area_top;
+              const aWidth = isDesign ? (issue.design_area_width || issue.area_width) : issue.area_width;
+              const aHeight = isDesign ? (issue.design_area_height || issue.area_height) : issue.area_height;
+              anno.style.cssText = `left:${aLeft};top:${aTop};width:${aWidth};height:${aHeight};`;
               anno.setAttribute('onclick', `highlightIssue('${issueId}')`);
               anno.innerHTML = wrap.dataset.type === 'dev'
                 ? `<div class="issue-anno-label">#${issue.issue_number} ${escHtml(issue.title)}</div>`
@@ -2537,9 +2835,32 @@ async function loadProject(projectId) {
 
     rebuildList();
     syncIssueCountToCard();
+    sortAnnoZIndex();
     showPage('workbench');
     setTimeout(() => canvasFit(), 300);
-  } catch (e) { console.error('Load project error:', e); }
+
+    // Supabase Realtime：订阅当前项目的 issues 变更
+    if (window._issueSubscription) {
+      sb.removeChannel(window._issueSubscription);
+    }
+    window._issueSubscription = sb.channel('issues-' + projectId)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'issues',
+        filter: `project_id=eq.${projectId}`
+      }, (payload) => {
+        const updated = payload.new;
+        const card = document.getElementById('issue-' + updated.issue_number);
+        if (card && card.dataset.status !== updated.status) {
+          card.dataset.status = updated.status;
+          syncStatusLabels();
+          rebuildList();
+        }
+      })
+      .subscribe();
+
+  } catch (e) { console.error('Load project error:', e); showToast('项目加载失败，请检查网络后重试'); }
 }
 
 // ── Init ───────────────────────────────────────────────────────
@@ -2897,7 +3218,7 @@ function insertAIReviewTip(count) {
   if (old) old.remove();
   const tip = document.createElement('div');
   tip.className = 'ai-review-tip';
-  tip.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg><span>AI 生成了 ${count} 个问题，建议检查后再分配给开发。误报可点击卡片右上角删除。</span><button onclick="this.parentElement.remove()" style="margin-left:auto;padding:2px 8px;border:none;background:none;color:#92400e;font-size:12px;cursor:pointer;white-space:nowrap">知道了</button>`;
+  tip.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg><span style="flex:1;text-align:left">AI 生成了 ${count} 个问题，建议检查后再分配给开发。误报可点击卡片右上角删除。</span><button onclick="this.parentElement.remove()" style="padding:2px 8px;border:none;background:none;color:#2563eb;font-size:12px;cursor:pointer;white-space:nowrap">知道了</button>`;
   issueList.insertBefore(tip, issueList.firstChild);
 }
 
@@ -2919,11 +3240,11 @@ const PRIORITY_BADGE = { '高': 'badge-high', '中': 'badge-mid', '低': 'badge-
 
 // 处理重叠标注的标签错开显示
 function staggerOverlappingLabels(container) {
+  if (!container) return;
   const wraps = container.querySelectorAll('.canvas-img-wrap');
   wraps.forEach(wrap => {
     const annos = [...wrap.querySelectorAll('.issue-anno')];
     if (annos.length < 2) return;
-    // 按 top 值排序分组，相近的需要错开
     const labelInfos = annos.map(a => {
       const label = a.querySelector('.issue-anno-label');
       const top = parseFloat(a.style.top) || 0;
@@ -2931,18 +3252,35 @@ function staggerOverlappingLabels(container) {
       return { anno: a, label, top, left };
     }).sort((a, b) => a.top - b.top || a.left - b.left);
 
-    // 检测标签是否会重叠（top 值差距 < 12%）
+    // 检测标签是否会重叠（top 和 left 值都相近）
     for (let i = 0; i < labelInfos.length; i++) {
-      let offset = 0;
+      let vOffset = 0; // 垂直偏移层数
       for (let j = 0; j < i; j++) {
-        if (Math.abs(labelInfos[i].top - labelInfos[j].top) < 12) {
-          offset++;
+        if (Math.abs(labelInfos[i].top - labelInfos[j].top) < 12 &&
+            Math.abs(labelInfos[i].left - labelInfos[j].left) < 25) {
+          vOffset++;
         }
       }
-      if (offset > 0 && labelInfos[i].label) {
-        labelInfos[i].label.style.top = (-18 - offset * 18) + 'px';
+      if (vOffset > 0 && labelInfos[i].label) {
+        // 交替向上偏移，避免堆叠
+        labelInfos[i].label.style.top = (-18 - vOffset * 16) + 'px';
       }
     }
+  });
+}
+
+// 按面积反比分配 z-index，小框在上层，大框在下层
+function sortAnnoZIndex() {
+  document.querySelectorAll('.canvas-img-wrap').forEach(wrap => {
+    const annos = [...wrap.querySelectorAll('.issue-anno')];
+    if (annos.length < 2) return;
+    annos.forEach(a => {
+      const w = parseFloat(a.style.width) || 0;
+      const h = parseFloat(a.style.height) || 0;
+      a._area = w * h;
+    });
+    annos.sort((a, b) => b._area - a._area);
+    annos.forEach((a, i) => { a.style.zIndex = 10 + i; });
   });
 }
 
@@ -2970,6 +3308,9 @@ async function analyzePair(btnEl) {
   btnEl.classList.add('analyzing');
   btnEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .8s linear infinite"><path stroke-linecap="round" d="M12 3a9 9 0 1 1-6.36 2.64"/></svg>';
 
+  // 清理旧的扫描动画（重新分析时避免重复）
+  pair.querySelectorAll('.scan-overlay, .analyzing-mask').forEach(el => el.remove());
+
   // 添加扫描动画（仅动画，不含进度条）
   const scanHtmlTpl = `<div class="scan-overlay"><div class="scan-line"></div><div class="scan-grid"></div></div><div class="analyzing-mask"></div>`;
   design.insertAdjacentHTML('beforeend', scanHtmlTpl);
@@ -2988,15 +3329,54 @@ async function analyzePair(btnEl) {
   try {
     // 确保图片加载完成
     await Promise.all([waitForImgLoad(designImg), waitForImgLoad(devImg)]);
-    const designB64 = imgToBase64(designImg);
-    const devB64 = imgToBase64(devImg);
+    const designData = imgToBase64(designImg);
+    const devData = imgToBase64(devImg);
+    // 叠加坐标网格辅助 Gemini 空间定位（0-1000 坐标系）
+    const designRawB64 = `data:${designData.mime};base64,${designData.b64}`;
+    const devRawB64 = `data:${devData.mime};base64,${devData.b64}`;
+    const [designGridB64, devGridB64] = await Promise.all([
+      addGridOverlay(designRawB64),
+      addGridOverlay(devRawB64),
+    ]);
+
+    // 按 pair 匹配对应的 Figma 设计属性 + 构建位置映射
+    let pairProps = undefined;
+    let figmaPosMap = null; // Figma 节点名 → CSS 百分比坐标
+    if (figmaDesignProps) {
+      const nodeId = pair.dataset.figmaNodeId;
+      if (nodeId && figmaDesignProps[nodeId]) {
+        pairProps = { [nodeId]: figmaDesignProps[nodeId] };
+        // 根 Frame 的坐标就是这个节点自身
+        const root = figmaDesignProps[nodeId];
+        if (root.x != null && root.y != null && root.width && root.height) {
+          figmaPosMap = buildFigmaPositionMap(root, { x: root.x, y: root.y, width: root.width, height: root.height });
+          const keys = Object.keys(figmaPosMap);
+          console.log(`[DesignCheck] Figma 位置映射已构建，共 ${keys.length} 个节点`);
+          console.log('[DesignCheck] Figma 节点名:', keys.slice(0, 30).join(', '));
+        }
+      } else {
+        // 没匹配到特定节点，回退到全部 props
+        pairProps = figmaDesignProps;
+        // 尝试用第一个节点作为 Frame
+        const firstKey = Object.keys(figmaDesignProps)[0];
+        if (firstKey) {
+          const root = figmaDesignProps[firstKey];
+          if (root.x != null && root.y != null && root.width && root.height) {
+            figmaPosMap = buildFigmaPositionMap(root, { x: root.x, y: root.y, width: root.width, height: root.height });
+            const keys = Object.keys(figmaPosMap);
+            console.log(`[DesignCheck] Figma 位置映射（回退），共 ${keys.length} 个节点`);
+            console.log('[DesignCheck] Figma 节点名:', keys.slice(0, 30).join(', '));
+          }
+        }
+      }
+    }
 
     const _analyzeAC = new AbortController();
     const _analyzeTimeout = setTimeout(() => _analyzeAC.abort(), 120000); // 2 分钟超时
     const resp = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ designImage: designB64, devImage: devB64 }),
+      body: JSON.stringify({ designImage: designGridB64, devImage: devGridB64, designProps: pairProps }),
       signal: _analyzeAC.signal,
     });
 
@@ -3008,7 +3388,143 @@ async function analyzePair(btnEl) {
     }
 
     const data = await resp.json();
-    const picked = data.issues || [];
+    // 调试：打印 Gemini 原始返回
+    console.log('[DesignCheck] Gemini 原始返回:', JSON.stringify(data.issues, null, 2));
+    // 客户端过滤：去掉明显无效的 issue
+    const picked = (data.issues || []).filter(issue => {
+      if (!issue.desc || issue.desc.length < 5) return false;
+      if (issue.expected && issue.actual && issue.expected.trim() === issue.actual.trim()) return false;
+      return true;
+    });
+
+    // box_2d [y_min, x_min, y_max, x_max] (0-1000) → CSS 百分比（作为 fallback）
+    function box2dToCSS(box) {
+      if (!box || !Array.isArray(box) || box.length !== 4) return null;
+      const [yMin, xMin, yMax, xMax] = box;
+      let l = Math.max(0, Math.min(100, xMin / 10));
+      let t = Math.max(0, Math.min(100, yMin / 10));
+      let w = Math.max(2, (xMax - xMin) / 10);
+      let h = Math.max(1.5, (yMax - yMin) / 10);
+      if (l + w > 100) w = 100 - l;
+      if (t + h > 100) h = 100 - t;
+      return { left: l + '%', top: t + '%', width: w + '%', height: h + '%' };
+    }
+    // 兼容旧格式的 clamp
+    function clampArea(area) {
+      if (!area || typeof area !== 'object') return area;
+      const parse = (v) => parseFloat(String(v).replace('%', '')) || 0;
+      let l = Math.max(0, Math.min(100, parse(area.left)));
+      let t = Math.max(0, Math.min(100, parse(area.top)));
+      let w = Math.max(2, parse(area.width));
+      let h = Math.max(1.5, parse(area.height));
+      if (l + w > 100) w = 100 - l;
+      if (t + h > 100) h = 100 - t;
+      return { left: l + '%', top: t + '%', width: w + '%', height: h + '%' };
+    }
+    // 校验 box_2d 是否合法
+    function isValidBox(box) {
+      if (!box || !Array.isArray(box) || box.length !== 4) return false;
+      const [yMin, xMin, yMax, xMax] = box;
+      if ([yMin, xMin, yMax, xMax].some(v => typeof v !== 'number' || v < 0 || v > 1000)) return false;
+      if (xMax <= xMin || yMax <= yMin) return false;
+      if ((xMax - xMin) < 10 || (yMax - yMin) < 10) return false; // 太小不合理
+      return true;
+    }
+    // 比较两个 box 中心点偏差（阈值为 0-1000 空间中的距离）
+    function isBoxConsistent(boxA, boxB, threshold) {
+      const cAx = (boxA[1] + boxA[3]) / 2, cAy = (boxA[0] + boxA[2]) / 2;
+      const cBx = (boxB[1] + boxB[3]) / 2, cBy = (boxB[0] + boxB[2]) / 2;
+      return Math.abs(cAx - cBx) <= threshold && Math.abs(cAy - cBy) <= threshold;
+    }
+    // 获取设计稿坐标（用于 dev 回退）
+    function getDesignFallback(issue, figmaPos) {
+      if (figmaPos) return figmaPos;
+      if (issue.design_box) return box2dToCSS(issue.design_box);
+      if (issue.design_area) return clampArea(issue.design_area);
+      return null;
+    }
+
+    picked.forEach((issue, idx) => {
+      // === 设计稿定位：优先 Figma 精确坐标 ===
+      let figmaPos = null;
+      if (figmaPosMap) {
+        const nodeName = issue.figma_node || issue.element;
+        if (nodeName) {
+          figmaPos = matchFigmaPosition(nodeName, figmaPosMap);
+          if (figmaPos) {
+            console.log(`[DesignCheck] #${idx+1} "${nodeName}" → Figma 精确定位:`, figmaPos);
+          } else {
+            console.log(`[DesignCheck] #${idx+1} "${nodeName}" Figma 未匹配`);
+          }
+        }
+      }
+
+      // 设计稿：Figma 坐标 > design_box > 旧格式
+      if (figmaPos) {
+        issue.design_area = figmaPos;
+      } else if (issue.design_box) {
+        issue.design_area = box2dToCSS(issue.design_box);
+      } else if (issue.design_area) {
+        issue.design_area = clampArea(issue.design_area);
+      }
+
+      // === 开发稿定位：优先 Figma 坐标（精确），dev_box 仅作参考 ===
+      // 核心逻辑：设计稿和开发稿是同一页面，元素位置通常一致
+      // Figma 坐标像素级精确 vs Gemini dev_box 精度很差（mAP 0.34）
+      if (figmaPos) {
+        // 有 Figma 精确坐标：直接用于开发稿
+        // 如果 dev_box 存在且和 Figma 坐标偏差不大，用 dev_box（因为开发稿中位置可能微调）
+        // 否则信任 Figma 坐标
+        if (issue.dev_box && isValidBox(issue.dev_box)) {
+          const figmaBox = [
+            parseFloat(figmaPos.top) * 10,
+            parseFloat(figmaPos.left) * 10,
+            (parseFloat(figmaPos.top) + parseFloat(figmaPos.height)) * 10,
+            (parseFloat(figmaPos.left) + parseFloat(figmaPos.width)) * 10
+          ];
+          if (isBoxConsistent(issue.dev_box, figmaBox, 80)) {
+            // dev_box 和 Figma 坐标接近，说明 dev_box 可信，使用 dev_box
+            issue.dev_area = box2dToCSS(issue.dev_box);
+            console.log(`[DesignCheck] #${idx+1} dev_box 与 Figma 一致，使用 dev_box:`, issue.dev_area);
+          } else {
+            // dev_box 偏差大，不可信，使用 Figma 坐标
+            issue.dev_area = figmaPos;
+            console.log(`[DesignCheck] #${idx+1} dev_box [${issue.dev_box}] 偏离 Figma，使用 Figma 坐标:`, figmaPos);
+          }
+        } else {
+          // 没有 dev_box，直接用 Figma 坐标
+          issue.dev_area = figmaPos;
+          console.log(`[DesignCheck] #${idx+1} 使用 Figma 精确坐标:`, figmaPos);
+        }
+      } else if (issue.dev_box && isValidBox(issue.dev_box)) {
+        // 没有 Figma 数据，只能用 dev_box
+        const designRef = issue.design_box || null;
+        if (designRef && isValidBox(designRef) && !isBoxConsistent(issue.dev_box, designRef, 100)) {
+          const designFallback = getDesignFallback(issue, null);
+          if (designFallback) {
+            issue.dev_area = designFallback;
+            console.log(`[DesignCheck] #${idx+1} dev_box 偏差过大，回退到设计稿坐标`);
+          } else {
+            issue.dev_area = box2dToCSS(issue.dev_box);
+          }
+        } else {
+          issue.dev_area = box2dToCSS(issue.dev_box);
+          console.log(`[DesignCheck] #${idx+1} 无 Figma，使用 dev_box:`, issue.dev_area);
+        }
+      } else {
+        // 既没有 Figma 也没有有效 dev_box
+        const designFallback = getDesignFallback(issue, null);
+        if (designFallback) {
+          issue.dev_area = designFallback;
+          console.log(`[DesignCheck] #${idx+1} 无 Figma 无 dev_box，使用设计稿坐标`);
+        } else if (issue.dev_area) {
+          issue.dev_area = clampArea(issue.dev_area);
+        }
+      }
+
+      issue._posSource = figmaPos ? 'figma+gemini' : 'gemini';
+      if (issue.area) issue.area = clampArea(issue.area);
+    });
 
     // 完成进度条动画
     clearInterval(progressTimer);
@@ -3039,18 +3555,22 @@ async function analyzePair(btnEl) {
 
     // 计算当前 pair 在 canvas 中的页码索引
     const pairGroup = pair.closest('[id^="canvas-"]');
-    const pairPageIndex = pairGroup ? Array.from(pairGroup.querySelectorAll('.canvas-pair')).indexOf(pair) : 0;
+    const pairPageIndex = pairGroup ? Math.max(0, Array.from(pairGroup.querySelectorAll('.canvas-pair')).indexOf(pair)) : 0;
 
     picked.forEach((issue, i) => {
       _analyzeCounter++;
       const issueId = 'issue-' + _analyzeCounter;
       const pClass = priorityClass[issue.priority] || 'priority-mid';
 
+      // 兼容新旧格式：优先用 dev_area/design_area，fallback 到 area
+      const devArea = issue.dev_area || issue.area || {};
+      const designArea = issue.design_area || issue.area || {};
+
       // 在开发稿上添加标注框
       const anno = document.createElement('div');
       anno.className = 'issue-anno ' + pClass;
       anno.dataset.issueId = issueId;
-      anno.style.cssText = `left:${issue.area.left};top:${issue.area.top};width:${issue.area.width};height:${issue.area.height};`;
+      anno.style.cssText = `left:${devArea.left};top:${devArea.top};width:${devArea.width};height:${devArea.height};`;
       anno.setAttribute('onclick', `highlightIssue('${issueId}')`);
       anno.innerHTML = `<div class="issue-anno-label">#${_analyzeCounter} ${escHtml(issue.title)}</div>`;
       dev.appendChild(anno);
@@ -3059,7 +3579,7 @@ async function analyzePair(btnEl) {
       const annoDesign = document.createElement('div');
       annoDesign.className = 'issue-anno ' + pClass;
       annoDesign.dataset.issueId = issueId;
-      annoDesign.style.cssText = `left:${issue.area.left};top:${issue.area.top};width:${issue.area.width};height:${issue.area.height};`;
+      annoDesign.style.cssText = `left:${designArea.left};top:${designArea.top};width:${designArea.width};height:${designArea.height};`;
       annoDesign.setAttribute('onclick', `highlightIssue('${issueId}')`);
       annoDesign.innerHTML = `<div class="issue-anno-label">#${_analyzeCounter}</div>`;
       design.appendChild(annoDesign);
@@ -3103,6 +3623,7 @@ async function analyzePair(btnEl) {
           <span class="tag-type">${escHtml(issue.type)}</span>
         </div>
         <div class="text-xs font-medium text-gray-900 mb-0.5 leading-snug"><span class="text-[10px] text-gray-400 font-mono mr-1">#${_analyzeCounter}</span>${escHtml(issue.title)}</div>
+        ${issue.element ? `<div class="text-[10px] text-blue-500 mb-0.5">\u{1F4CD} ${escHtml(issue.element)}</div>` : ''}
         <div class="text-[10px] text-gray-400 mb-1">刚刚 · AI 自动检测</div>
         <div class="text-[10px] text-gray-400 mb-2">${escHtml(issue.desc)}</div>
         ${compareHtml}
@@ -3129,9 +3650,61 @@ async function analyzePair(btnEl) {
             </div>
           </div>
         </div>
-        <div class="timeline-toggle text-xs font-medium text-gray-400" onclick="toggleTimeline(this, event)"><span class="tl-arrow">▸</span> 添加评论</div>
+        <div class="timeline-toggle text-xs font-medium text-gray-400" onclick="toggleTimeline(this, event)"><span class="tl-arrow">▸</span> ${i === 0 ? '评论 · 7条' : '添加评论'}</div>
         <div class="card-timeline-section">
-          <div class="space-y-2 mt-2" id="${tlId}"></div>
+          <div class="space-y-2 mt-2" id="${tlId}">
+            ${i === 0 ? `
+            <div class="flex items-start gap-2">
+              <div class="timeline-avatar bg-blue-100 text-blue-700">雨</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">小雨</span><span class="text-[10px] px-1 py-0.5 rounded bg-blue-50 text-blue-500">设计师</span><span class="text-xs text-gray-400">· 昨天 14:20</span></div>
+                <div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">@张伟 这个问题比较明显，设计稿里的参数值已经标注在上面了，麻烦对照修改一下</div>
+              </div>
+            </div>
+            <div class="flex items-start gap-2">
+              <div class="timeline-avatar bg-green-100 text-green-700">张</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">张伟</span><span class="text-[10px] px-1 py-0.5 rounded bg-green-50 text-green-600">前端</span><span class="text-xs text-gray-400">· 昨天 14:35</span></div>
+                <div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">收到，我看一下… 这个组件用的是全局样式，改了会影响其他页面，是只改这个还是全局统一？</div>
+              </div>
+            </div>
+            <div class="flex items-start gap-2">
+              <div class="timeline-avatar bg-blue-100 text-blue-700">雨</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">小雨</span><span class="text-[10px] px-1 py-0.5 rounded bg-blue-50 text-blue-500">设计师</span><span class="text-xs text-gray-400">· 昨天 14:42</span></div>
+                <div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">只改这个页面的，其他页面保持不变。可以加个 class 覆盖</div>
+              </div>
+            </div>
+            <div class="flex items-start gap-2">
+              <div class="timeline-avatar bg-green-100 text-green-700">张</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">张伟</span><span class="text-[10px] px-1 py-0.5 rounded bg-green-50 text-green-600">前端</span><span class="text-xs text-gray-400">· 昨天 16:10</span></div>
+                <div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">已修改，加了 <span class="font-mono bg-white px-1 rounded border border-gray-200">.pathway-btn</span> 覆盖样式，已上传核验图</div>
+              </div>
+            </div>
+            <div class="flex items-start gap-2">
+              <div class="timeline-avatar bg-blue-100 text-blue-700">雨</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">小雨</span><span class="text-[10px] px-1 py-0.5 rounded bg-blue-50 text-blue-500">设计师</span><span class="text-xs text-gray-400">· 昨天 17:00</span></div>
+                <div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">这个改好了，但旁边的高度好像也矮了一点？设计稿是 48px</div>
+              </div>
+            </div>
+            <div class="flex items-start gap-2">
+              <div class="timeline-avatar bg-green-100 text-green-700">张</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">张伟</span><span class="text-[10px] px-1 py-0.5 rounded bg-green-50 text-green-600">前端</span><span class="text-xs text-gray-400">· 今天 09:30</span></div>
+                <div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">高度也修了，48px，请再看一下</div>
+              </div>
+            </div>
+            <div class="flex items-start gap-2">
+              <div class="timeline-avatar bg-blue-100 text-blue-700">雨</div>
+              <div class="flex-1">
+                <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">小雨</span><span class="text-[10px] px-1 py-0.5 rounded bg-blue-50 text-blue-500">设计师</span><span class="text-xs text-gray-400">· 今天 10:15</span></div>
+                <div class="text-xs text-gray-600 bg-green-50 rounded-lg px-2 py-1.5 border border-green-200">没问题了，验收通过 ✓</div>
+              </div>
+            </div>
+            ` : ''}
+          </div>
           <div class="flex items-center gap-1.5 mt-2" onclick="event.stopPropagation()">
             <input id="${ciId}" type="text" placeholder="留言..." class="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-400 bg-white" />
             <button onclick="sendCardComment('${ciId}','${tlId}')" class="comment-send">发送</button>
@@ -3149,7 +3722,8 @@ async function analyzePair(btnEl) {
           project_id: currentProjectId, issue_number: _analyzeCounter,
           title: issue.title, type: issue.type, priority: issue.priority, status: '待分配',
           description: issue.desc, expected_val: issue.expected || '', actual_val: issue.actual || '',
-          area_left: issue.area?.left, area_top: issue.area?.top, area_width: issue.area?.width, area_height: issue.area?.height,
+          area_left: (issue.dev_area || issue.area)?.left, area_top: (issue.dev_area || issue.area)?.top,
+          area_width: (issue.dev_area || issue.area)?.width, area_height: (issue.dev_area || issue.area)?.height,
           source: 'ai', page_index: pairPageIndex, user_id: currentUserId
         }).then(({ error }) => { if (error) console.error('Issue save failed:', error); });
       }
@@ -3168,14 +3742,28 @@ async function analyzePair(btnEl) {
     syncIssueCountToCard();
     showFilterSection();
     staggerOverlappingLabels(pair);
+    sortAnnoZIndex();
     // AI 提示条
     insertAIReviewTip(picked.length);
 
   } catch (err) {
     clearInterval(progressTimer);
+    if (panelFill) panelFill.style.width = '0%';
+    if (panelText) panelText.textContent = '分析失败';
     pair.querySelectorAll('.scan-overlay, .analyzing-mask').forEach(el => el.remove());
     btnEl.classList.remove('analyzing');
-    const errMsg = err.name === 'AbortError' ? '分析请求超时，请检查网络后重试' : (err.message || '分析失败');
+    let errMsg = '分析失败，请重试';
+    if (err.name === 'AbortError') {
+      errMsg = '分析请求超时，请检查网络后重试';
+    } else if (err.message && /disabled/i.test(err.message)) {
+      errMsg = 'API 组织已被禁用，请检查 API Key';
+    } else if (err.message && /rate limit/i.test(err.message)) {
+      errMsg = '请求频率过高，请稍后重试';
+    } else if (err.message && /unauthorized|401/i.test(err.message)) {
+      errMsg = 'API 认证失败，请检查 API Key';
+    } else if (err.message && /Failed to fetch|network/i.test(err.message)) {
+      errMsg = '网络连接失败，请检查网络后重试';
+    }
     showToast(errMsg);
     console.error('分析失败详情:', err);
     // 重置按钮为可重新点击状态
@@ -3205,16 +3793,15 @@ async function analyzePair(btnEl) {
           </div>`;
       }
     }
-    showToast('分析失败，请重试');
   }
 }
 
-// 重试分析：找到当前画布的分析按钮重新触发
-function retryAnalyze(retryBtn) {
-  const analyzeBtn = document.querySelector('.pair-analyze-btn:not(.analyzed)');
-  if (analyzeBtn) {
-    analyzeBtn.classList.remove('analyzing', 'analyzed');
-    analyzePair(analyzeBtn);
+// 重试分析：找到所有未完成的分析按钮，依次重新触发
+async function retryAnalyze(retryBtn) {
+  const btns = document.querySelectorAll('.pair-analyze-btn:not(.analyzed)');
+  for (const btn of btns) {
+    btn.classList.remove('analyzing', 'analyzed');
+    await analyzePair(btn);
   }
 }
 
@@ -3308,6 +3895,7 @@ function analyzePairMock(btnEl, pair, dev) {
           <span class="tag-type">${escHtml(issue.type)}</span>
         </div>
         <div class="text-xs font-medium text-gray-900 mb-0.5 leading-snug"><span class="text-[10px] text-gray-400 font-mono mr-1">#${_analyzeCounter}</span>${escHtml(issue.title)}</div>
+        ${issue.element ? `<div class="text-[10px] text-blue-500 mb-0.5">\u{1F4CD} ${escHtml(issue.element)}</div>` : ''}
         <div class="text-[10px] text-gray-400 mb-1">刚刚 · AI 自动检测</div>
         <div class="text-[10px] text-gray-400 mb-2">${escHtml(issue.desc)}</div>
         ${compareHtml}
@@ -3365,6 +3953,7 @@ function analyzePairMock(btnEl, pair, dev) {
     syncIssueCountToCard();
     showFilterSection();
     staggerOverlappingLabels(pair);
+    sortAnnoZIndex();
     // AI 提示条
     insertAIReviewTip(count);
     }, 300);
@@ -3429,7 +4018,7 @@ function refreshSpotlightCanvas() {
       // 根据标签文本中的编号判断是否为选中问题
       const num = label.textContent.match(/#(\d+)/);
       const issueId = num ? 'issue-' + num[1] : '';
-      label.style.opacity = issueId === selectedIssueId ? '1' : '0.3';
+      label.style.opacity = issueId === selectedIssueId ? '0' : '0.3';
     }
   });
 }
@@ -3725,6 +4314,7 @@ function setAnnoMode(mode) {
         otherWrap.appendChild(anno2);
       }
       staggerOverlappingLabels(pair);
+      sortAnnoZIndex();
     }
 
     // 对比数据：优先使用用户输入的预期效果，否则从模拟池取
@@ -3821,5 +4411,6 @@ function setAnnoMode(mode) {
     syncIssueCountToCard();
     showFilterSection();
     staggerOverlappingLabels(wrap.closest('.canvas-pair'));
+    sortAnnoZIndex();
   }
 })();

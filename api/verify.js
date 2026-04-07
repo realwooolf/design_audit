@@ -1,10 +1,9 @@
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = 'claude-sonnet-4-20250514';
+const MODEL = 'gemini-2.5-flash';
 
 function parseB64(b64str) {
   const match = b64str.match(/^data:(image\/[^;]+);base64,(.+)$/);
-  if (match) return { media_type: match[1], data: match[2] };
-  return { media_type: 'image/jpeg', data: b64str };
+  if (match) return { mimeType: match[1], data: match[2] };
+  return { mimeType: 'image/jpeg', data: b64str };
 }
 
 export default async function handler(req, res) {
@@ -43,35 +42,35 @@ ${areaDesc}
     const verify = parseB64(verifyImage);
 
     const requestBody = {
-      model: MODEL,
-      max_tokens: 2048,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: prompt },
-          { type: 'image', source: { type: 'base64', media_type: design.media_type, data: design.data } },
-          { type: 'image', source: { type: 'base64', media_type: verify.media_type, data: verify.data } }
+      contents: [{
+        parts: [
+          { text: prompt },
+          { inlineData: { mimeType: design.mimeType, data: design.data } },
+          { inlineData: { mimeType: verify.mimeType, data: verify.data } }
         ]
       }],
-      temperature: 0.1
+      generationConfig: {
+        temperature: 0.1,
+        maxOutputTokens: 2048
+      }
     };
 
-    const response = await fetch(ANTHROPIC_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify(requestBody)
-    });
+    const apiKey = process.env.GEMINI_API_KEY;
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      }
+    );
 
     const json = await response.json();
     if (json.error) {
       throw new Error(json.error.message || JSON.stringify(json.error));
     }
 
-    const rawText = json.content?.[0]?.text || '{}';
+    const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
     let text = rawText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);

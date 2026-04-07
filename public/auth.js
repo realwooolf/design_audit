@@ -75,8 +75,7 @@
       if (user && user.email) {
         const initial = user.email.charAt(0).toUpperCase();
         document.getElementById('userAvatar').textContent = initial;
-        document.getElementById('userName').textContent = user.email.split('@')[0];
-        document.getElementById('avatarMenuEmail').textContent = user.email;
+        document.getElementById('userName').textContent = user.email;
       }
     });
     // 不显示默认角色标签（切换按钮已足够）
