@@ -22,6 +22,9 @@ const PROMPT = `你是一个专业的 UI 走查差异检测工具。你的唯一
 - 样式差异：必须是确实不同的样式属性，不要把渲染引擎差异当成样式问题
 - 宁可漏报也不要误报：一个误报比漏掉一个小问题更糟糕
 - 如果设计稿和开发稿看起来基本一致，返回空列表 {"issues": []} 是完全正确的
+- 地图、卫星图、实景照片等动态渲染内容：这些区域内的细节（路径线条粗细、地图纹理、标注点位置）在不同设备/渲染时会自然变化，不属于还原度问题，不要报告
+- "新增元素"类问题：必须确认该元素确实只在开发稿中存在、设计稿中完全没有对应元素。如果设计稿中有类似元素只是位置或样式略有不同，那是样式差异而非新增元素
+- 对比时以 Figma JSON 数据为权威依据：如果 Figma 数据显示两个元素属性一致，即使图片视觉上看起来略有差异（可能是渲染/压缩导致），也不要报告
 
 数值规则：
 1. "expected"（设计稿预期值）：
@@ -110,13 +113,24 @@ export default async function handler(req, res) {
     if (designProps && Object.keys(designProps).length > 0) {
       let propsJson = JSON.stringify(designProps, null, 2);
       if (propsJson.length > 10000) {
-        // 分级精简：先去掉 fills/effects/strokes 的详细数据
+        // 分级精简：保留颜色值，去掉冗余结构
         const slim = JSON.parse(JSON.stringify(designProps));
         function simplifyNode(node) {
           if (!node || typeof node !== 'object') return;
-          if (Array.isArray(node.fills)) node.fills = node.fills.map(f => f.color || f.type).filter(Boolean);
-          if (Array.isArray(node.effects)) node.effects = node.effects.map(e => e.type).filter(Boolean);
-          if (Array.isArray(node.strokes)) node.strokes = node.strokes.map(s => s.color || s.type).filter(Boolean);
+          if (Array.isArray(node.fills)) node.fills = node.fills.map(f => {
+            if (f.type === 'SOLID' && f.color) return { color: f.color, opacity: f.opacity };
+            return f.color || f.type;
+          }).filter(Boolean);
+          if (Array.isArray(node.effects)) node.effects = node.effects.map(e => {
+            const r = { type: e.type };
+            if (e.color) r.color = e.color;
+            if (e.radius != null) r.radius = e.radius;
+            return r;
+          });
+          if (Array.isArray(node.strokes)) node.strokes = node.strokes.map(s => {
+            if (s.color) return { color: s.color };
+            return s.type;
+          }).filter(Boolean);
           if (Array.isArray(node.children)) node.children.forEach(simplifyNode);
         }
         Object.values(slim).forEach(simplifyNode);

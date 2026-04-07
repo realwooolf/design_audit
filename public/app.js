@@ -1695,12 +1695,32 @@ function pickSmallest(candidates) {
 }
 
 // 根据 Gemini 返回的 element 名称在 Figma 位置映射中查找最佳匹配
-function matchFigmaPosition(elementName, posMap) {
+// designBox: 可选，Gemini 返回的 design_box [yMin,xMin,yMax,xMax]，用于位置验证
+function matchFigmaPosition(elementName, posMap, designBox) {
   if (!elementName || !posMap) return null;
   const name = elementName.trim().toLowerCase();
 
+  // 位置验证函数：检查候选位置是否和 Gemini 报告的 design_box 一致
+  function verifyPosition(candidate) {
+    if (!candidate || !designBox || !Array.isArray(designBox) || designBox.length !== 4) return candidate;
+    const [yMin, xMin, yMax, xMax] = designBox;
+    const geminiCX = (xMin + xMax) / 2 / 10; // 0-1000 转百分比
+    const geminiCY = (yMin + yMax) / 2 / 10;
+    const figmaCX = parseFloat(candidate.left) + parseFloat(candidate.width) / 2;
+    const figmaCY = parseFloat(candidate.top) + parseFloat(candidate.height) / 2;
+    const dist = Math.sqrt((geminiCX - figmaCX) ** 2 + (geminiCY - figmaCY) ** 2);
+    if (dist > 15) { // 中心点距离超 15%，匹配错误
+      console.log(`[DesignCheck] 位置验证失败: "${elementName}" Figma(${figmaCX.toFixed(1)},${figmaCY.toFixed(1)}) vs Gemini(${geminiCX.toFixed(1)},${geminiCY.toFixed(1)}) 距离=${dist.toFixed(1)}`);
+      return null;
+    }
+    return candidate;
+  }
+
   // 1. 精确匹配 → 选最小元素
-  if (posMap[name]) return pickSmallest(posMap[name]);
+  if (posMap[name]) {
+    const result = verifyPosition(pickSmallest(posMap[name]));
+    if (result) return result;
+  }
 
   // 2. 包含匹配：Figma 节点名包含 element 名，或反过来
   let bestCandidates = null;
@@ -1715,13 +1735,17 @@ function matchFigmaPosition(elementName, posMap) {
       }
     }
   }
-  if (bestCandidates) return pickSmallest(bestCandidates);
+  if (bestCandidates) {
+    const result = verifyPosition(pickSmallest(bestCandidates));
+    if (result) return result;
+  }
 
   // 3. 关键词匹配：拆分 element 名称为关键词，找重合度最高的
   const keywords = name.split(/[\s\/\-_,，。]+/).filter(w => w.length > 1);
   if (keywords.length === 0) return null;
 
   bestScore = 0;
+  bestCandidates = null;
   for (const [key, candidates] of Object.entries(posMap)) {
     const k = key.toLowerCase();
     const matched = keywords.filter(kw => k.includes(kw)).length;
@@ -1730,7 +1754,10 @@ function matchFigmaPosition(elementName, posMap) {
       bestCandidates = candidates;
     }
   }
-  return bestScore > 0 ? pickSmallest(bestCandidates) : null;
+  if (bestScore > 0) {
+    return verifyPosition(pickSmallest(bestCandidates));
+  }
+  return null;
 }
 
 async function exportFigmaImages(fileKey, nodeIds, token) {
@@ -2228,7 +2255,7 @@ function timeAgo(dateStr) {
 }
 
 // ── 在首页新增项目卡片 ──────────────────────────────────────────
-function addProjectCard(name, reviewStatus, createdAt, prepend = true) {
+function addProjectCard(name, reviewStatus, createdAt, prepend = true, skipUpdate = false) {
   const grid = document.getElementById('projectGrid');
   if (!grid) return;
 
@@ -2277,9 +2304,11 @@ function addProjectCard(name, reviewStatus, createdAt, prepend = true) {
     grid.appendChild(card);
   }
 
-  // 更新项目数量 & 显示项目列表
-  updateProjectCount();
-  renderHome();
+  // 更新项目数量 & 显示项目列表（批量插入时跳过，循环结束后统一调用）
+  if (!skipUpdate) {
+    updateProjectCount();
+    renderHome();
+  }
   return card;
 }
 
@@ -2623,18 +2652,18 @@ async function loadProjectsFromDB() {
       (issues || []).forEach(i => { issueCountMap[i.project_id] = (issueCountMap[i.project_id] || 0) + 1; });
 
       projects.forEach(p => {
-        const card = addProjectCard(p.name, p.review_status || '进行中', p.created_at, false);
+        const card = addProjectCard(p.name, p.review_status || '进行中', p.created_at, false, true);
         if (card) {
           card.dataset.projectId = p.id;
-          // 显示真实 issue 数量
           const countSpan = card.querySelector('.issue-count-num');
           if (countSpan) countSpan.textContent = issueCountMap[p.id] || 0;
-        }
-        if (card) {
           const clickArea = card.querySelector('[onclick]');
           if (clickArea) clickArea.setAttribute('onclick', `loadProject('${p.id}')`);
         }
       });
+      // 批量插入完成后统一更新一次
+      updateProjectCount();
+      renderHome();
     }
   } catch (e) { console.error('Load projects error:', e); }
 }
@@ -3450,7 +3479,7 @@ async function analyzePair(btnEl) {
       if (figmaPosMap) {
         const nodeName = issue.figma_node || issue.element;
         if (nodeName) {
-          figmaPos = matchFigmaPosition(nodeName, figmaPosMap);
+          figmaPos = matchFigmaPosition(nodeName, figmaPosMap, issue.design_box);
           if (figmaPos) {
             console.log(`[DesignCheck] #${idx+1} "${nodeName}" → Figma 精确定位:`, figmaPos);
           } else {
