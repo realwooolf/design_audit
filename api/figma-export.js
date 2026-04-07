@@ -140,13 +140,15 @@ async function handleProps(fileKey, nodeIds, headers, res) {
 
   const data = await resp.json();
   const results = {};
+  const indexedNodes = {};  // nodeId → { nodeList, nodeSummary }
   for (const nid of nodeIds) {
     const node = data.nodes?.[nid]?.document;
     if (node) {
       results[nid] = extractDesignProps(node, 0, 6);
+      indexedNodes[nid] = generateIndexedNodeList(node);
     }
   }
-  return res.status(200).json({ props: results });
+  return res.status(200).json({ props: results, indexedNodes });
 }
 
 // Figma RGBA {r,g,b,a} (0-1) → hex string
@@ -281,6 +283,125 @@ function extractDesignProps(node, depth, maxDepth) {
   }
 
   return props;
+}
+
+// 生成编号节点列表：遍历 Figma 节点树，为每个有视觉属性的节点分配编号
+// 返回 { nodeList: [...], nodeSummary: "文本清单" }
+function generateIndexedNodeList(rootNode) {
+  const frameBox = rootNode.absoluteBoundingBox;
+  if (!frameBox || !frameBox.width || !frameBox.height) return { nodeList: [], nodeSummary: '' };
+
+  const nodeList = [];
+  let counter = 0;
+
+  // 位置提示词
+  function posHint(bb) {
+    if (!bb) return '';
+    const cy = ((bb.y - frameBox.y + bb.height / 2) / frameBox.height) * 100;
+    const cx = ((bb.x - frameBox.x + bb.width / 2) / frameBox.width) * 100;
+    let v = cy < 25 ? '顶部' : cy < 45 ? '中上部' : cy < 55 ? '中部' : cy < 75 ? '中下部' : '底部';
+    let h = cx < 30 ? '左侧' : cx > 70 ? '右侧' : '';
+    return h ? v + h : v;
+  }
+
+  // 短类型名
+  function shortType(type) {
+    const map = { FRAME: 'FRAME', GROUP: 'GROUP', RECTANGLE: 'RECT', ELLIPSE: 'ELLIPSE',
+      TEXT: 'TEXT', VECTOR: 'VECTOR', COMPONENT: 'COMP', INSTANCE: 'INST',
+      LINE: 'LINE', BOOLEAN_OPERATION: 'BOOL' };
+    return map[type] || type;
+  }
+
+  function walk(node) {
+    if (!node || node.visible === false) return;
+    const bb = node.absoluteBoundingBox;
+    const entry = {};
+    let hasVisual = false;
+    let summaryParts = [];
+
+    // fills
+    if (node.fills?.length) {
+      const solid = node.fills.find(f => f.visible !== false && f.type === 'SOLID' && f.color);
+      if (solid) {
+        entry.fill = rgbaToHex(solid.color);
+        summaryParts.push('填充' + entry.fill);
+        hasVisual = true;
+      }
+    }
+    // text
+    if (node.type === 'TEXT' && node.style) {
+      const s = node.style;
+      if (s.fontSize) { entry.fontSize = s.fontSize; summaryParts.push(s.fontSize + 'px'); hasVisual = true; }
+      if (s.fontWeight) { entry.fontWeight = s.fontWeight; summaryParts.push('字重' + s.fontWeight); hasVisual = true; }
+      if (s.fontFamily) { entry.fontFamily = s.fontFamily; summaryParts.push(s.fontFamily); hasVisual = true; }
+    }
+    // cornerRadius
+    if (node.cornerRadius > 0) { entry.cornerRadius = node.cornerRadius; summaryParts.push('圆角' + node.cornerRadius + 'px'); hasVisual = true; }
+    // strokes
+    if (node.strokes?.length) {
+      const solid = node.strokes.find(f => f.visible !== false && f.type === 'SOLID' && f.color);
+      if (solid) {
+        entry.strokeColor = rgbaToHex(solid.color);
+        if (node.strokeWeight) entry.strokeWeight = node.strokeWeight;
+        summaryParts.push('描边' + entry.strokeColor + (node.strokeWeight ? ' ' + node.strokeWeight + 'px' : ''));
+        hasVisual = true;
+      }
+    }
+    // opacity
+    if (node.opacity != null && node.opacity < 1) { entry.opacity = node.opacity; summaryParts.push('透明度' + node.opacity); hasVisual = true; }
+    // spacing / padding (Auto Layout containers)
+    if (node.layoutMode && node.layoutMode !== 'NONE') {
+      if (node.itemSpacing != null) { entry.itemSpacing = node.itemSpacing; summaryParts.push('间距' + node.itemSpacing + 'px'); hasVisual = true; }
+      const pt = node.paddingTop || 0, pr = node.paddingRight || 0, pb = node.paddingBottom || 0, pl = node.paddingLeft || 0;
+      if (pt || pr || pb || pl) {
+        entry.padding = `${pt}/${pr}/${pb}/${pl}`;
+        summaryParts.push('padding ' + entry.padding);
+        hasVisual = true;
+      }
+    }
+
+    if (hasVisual && bb) {
+      counter++;
+      entry.index = counter;
+      entry.name = node.name || '';
+      entry.type = node.type;
+      // bbox: 相对 frame 的百分比坐标（前端直接用于 CSS 定位）
+      const relX = bb.x - frameBox.x;
+      const relY = bb.y - frameBox.y;
+      entry.bbox = {
+        left: Math.max(0, Math.min(100, (relX / frameBox.width) * 100)),
+        top: Math.max(0, Math.min(100, (relY / frameBox.height) * 100)),
+        width: Math.max(0.5, Math.min(100, (bb.width / frameBox.width) * 100)),
+        height: Math.max(0.5, Math.min(100, (bb.height / frameBox.height) * 100)),
+      };
+      entry.pos = posHint(bb);
+      nodeList.push(entry);
+    }
+
+    if (node.children) {
+      node.children.forEach(walk);
+    }
+  }
+
+  walk(rootNode);
+
+  // 生成文本清单（发给 Gemini，不含 bbox）
+  const lines = nodeList.map(n => {
+    const props = [];
+    if (n.fill) props.push('填充' + n.fill);
+    if (n.fontSize) props.push(n.fontSize + 'px');
+    if (n.fontWeight) props.push('字重' + n.fontWeight);
+    if (n.fontFamily) props.push(n.fontFamily);
+    if (n.cornerRadius) props.push('圆角' + n.cornerRadius + 'px');
+    if (n.strokeColor) props.push('描边' + n.strokeColor + (n.strokeWeight ? ' ' + n.strokeWeight + 'px' : ''));
+    if (n.opacity != null) props.push('透明度' + n.opacity);
+    if (n.itemSpacing != null) props.push('间距' + n.itemSpacing + 'px');
+    if (n.padding) props.push('padding ' + n.padding);
+    const propsStr = props.length ? ' — ' + props.join(', ') : '';
+    return `#${n.index} [${shortType(n.type)}] ${n.name}${propsStr} (${n.pos})`;
+  });
+
+  return { nodeList, nodeSummary: lines.join('\n') };
 }
 
 // 统一处理 Figma API 错误

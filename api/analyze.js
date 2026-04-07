@@ -6,8 +6,8 @@ const PROMPT = `你是一个专业的 UI 走查差异检测工具。你的唯一
 输入：
 - 第一张图：设计稿（Figma 设计规范）
 - 第二张图：开发稿（实际开发效果）
-- 两张图片上叠加了红色坐标网格，网格标签为 0-1000 坐标系（如 "300,500" 表示 x=300, y=500）。请利用这些网格参考点来精确定位元素
-- 可能附带 Figma 精确设计属性 JSON（作为设计规范的权威数据源）
+- 两张图片上叠加了红色坐标网格，网格标签为 0-1000 坐标系（如 "300,500" 表示 x=300, y=500）
+- 可能附带【Figma 元素编号清单】：每个设计元素有唯一编号、类型、视觉属性和位置提示
 
 检测范围：
 - 颜色差异、间距/边距差异、字体大小/粗细差异、圆角差异
@@ -22,70 +22,44 @@ const PROMPT = `你是一个专业的 UI 走查差异检测工具。你的唯一
 - 样式差异：必须是确实不同的样式属性，不要把渲染引擎差异当成样式问题
 - 宁可漏报也不要误报：一个误报比漏掉一个小问题更糟糕
 - 如果设计稿和开发稿看起来基本一致，返回空列表 {"issues": []} 是完全正确的
-- 地图、卫星图、实景照片等动态渲染内容：这些区域内的细节（路径线条粗细、地图纹理、标注点位置）在不同设备/渲染时会自然变化，不属于还原度问题，不要报告
-- "新增元素"类问题：必须确认该元素确实只在开发稿中存在、设计稿中完全没有对应元素。如果设计稿中有类似元素只是位置或样式略有不同，那是样式差异而非新增元素
-- 对比时以 Figma JSON 数据为权威依据：如果 Figma 数据显示两个元素属性一致，即使图片视觉上看起来略有差异（可能是渲染/压缩导致），也不要报告
+- 地图、卫星图、实景照片等动态渲染内容：这些区域内的细节在不同设备/渲染时会自然变化，不属于还原度问题，不要报告
+- "新增元素"类问题：必须确认该元素确实只在开发稿中存在、设计稿中完全没有对应元素
+- 如果编号清单中某元素的属性与图片视觉一致，即使图片看起来略有差异（渲染/压缩导致），也不要报告
 
 数值规则：
 1. "expected"（设计稿预期值）：
-   - 如果附带了 Figma JSON 数据 → 必须从中提取精确参数值并明确写出，让开发者可以直接对照修改。根据问题类型引用对应字段：
-     · 填充色 → fills[].color，如 "填充色: #FF6B35"
-     · 描边 → strokes[].color + strokeWeight + strokeAlign，如 "描边: #E0E0E0 1px INSIDE"
-     · 透明度 → opacity，如 "opacity: 0.8"
-     · 圆角 → cornerRadius 或 borderRadius{tl,tr,bl,br}，如 "圆角: 12px" 或 "圆角: 12/12/0/0px"
-     · 阴影/模糊 → effects[]，如 "阴影: blur 4px, offset (0,2)"
-     · 字体 → fontFamily，如 "字体: Inter"
-     · 字号 → fontSize，如 "字号: 16px"
-     · 字重 → fontWeight，如 "字重: 600 (Semi Bold)"
-     · 行高 → lineHeight，如 "行高: 24px"
-     · 字间距 → letterSpacing，如 "字间距: 0.5px"
-     · 文字对齐 → textAlign，如 "对齐: CENTER"
-     · 布局方向 → layoutMode，如 "布局: VERTICAL"
-     · 元素间距 → itemSpacing，如 "间距: 12px"
-     · 内距 → paddingTop/Bottom/Left/Right，如 "padding: 16/20/16/20px"
-     · 尺寸 → width/height，如 "宽度: 375px, 高度: 48px"
-   - 必须写出具体数值+单位，这是开发者修改的唯一依据
-   - 如果没有 Figma 数据 → 用定性描述（如"较粗的字体"、"深色背景"）
+   - 如果有编号清单 → 直接引用清单中该编号元素的精确属性值，如 "填充: #FF6B35"、"字号: 16px"、"圆角: 12px"
+   - 如果没有编号清单 → 用定性描述（如"较粗的字体"、"深色背景"）
 2. "actual"（开发稿实际表现）：
    - 永远不要猜测具体数值（禁止猜 hex 色值、猜像素值）
-   - 只做定性描述，描述与设计稿的差异方向，如："颜色偏蓝"、"字体明显更细"、"间距偏大约多出一半"、"圆角更小"
+   - 只做定性描述，如："颜色偏蓝"、"字体明显更细"、"间距偏大"、"圆角更小"
 3. 绝对禁止：输出"(估算值)"、"(估计)"、"约 #xxx"、"大概 16px"等。不确定就用文字描述。
 
-元素定位（直接影响标注准确性）：
-- 图片上的红色网格标签使用 0-1000 坐标系，与 box_2d 坐标一致。请参考网格交叉点标签来确定元素的精确位置
-- "figma_node" 字段用于精确定位：从 Figma JSON 数据中找到对应元素，复制其精确的 name 值。优先选叶子节点（TEXT、具体控件），不要选容器（Group/Frame）
-- "element" 字段用于人类阅读：用中文语义描述问题所在元素
-- 同时提供 box_2d 格式定位：[y_min, x_min, y_max, x_max]，坐标为 0-1000 的归一化整数值
-- box_2d 坐标原点在图片左上角，x 轴向右，y 轴向下，必须紧贴元素实际边界
-- design_box 和 dev_box 要分别定位设计稿和开发稿中的元素位置（两稿中元素位置可能不同）
-- 定位时对照网格标签仔细确认坐标值，不要凭感觉估算
-
-精确标注规则（必须遵守）：
-- box_2d 必须精确框选单个问题元素，紧贴该元素边界，不要包含周围无关元素。例如：如果问题是 Now 按钮颜色不对，只框 Now 按钮，不要把相邻的 Later 按钮也框进去
-- 在输出 dev_box 前，必须确认开发稿中定位到的元素和设计稿中是同一个元素。通过位置、文本内容、所在区域/父容器来综合判断。如果开发稿中有多个相似元素（如多个加号图标、多个按钮），必须根据上下文（所在页面区域、周围元素、父容器）选择正确的那个
-- design_box 和 dev_box 的中心点位置不应有大幅偏差，因为设计稿和开发稿中同一元素的位置通常是接近的。如果你发现 dev_box 中心点和 design_box 中心点差异很大，请重新确认是否定位到了正确的元素
-- 坐标示例：屏幕中部一个全宽按钮大约是 [450, 50, 500, 950]；右上角一个小图标大约是 [30, 850, 80, 950]；底部弹层中的按钮大约是 [800, 100, 860, 900]
+元素定位：
+- 如果有编号清单：在 node_index 字段填写对应元素的编号数字。系统会自动使用 Figma 精确坐标定位标注框，无需你提供 box_2d
+- 如果没有编号清单（纯图片模式）：提供 design_box 和 dev_box，格式为 [y_min, x_min, y_max, x_max]（0-1000 归一化整数值），参考图片上的红色网格标签定位
+- 匹配编号时，通过元素的类型、视觉属性（颜色、字号等）和位置提示词来确认正确的编号。如果有多个相似元素，根据位置提示词区分
 
 描述要求：
 - "desc" 客观描述差异事实，禁止主观评价（如"缺乏层次感"、"不够精致"）
-- 格式：说明设计稿预期是什么（引用 Figma 数据），开发稿实际看起来如何不同
 
 请严格以纯 JSON 格式返回，不要使用 \`\`\`json 代码块，不要有任何解释文字。
 返回格式：{"issues": [...]}，最多返回 5 个最明显、最确定的问题。
 每个问题字段：
 {
   "title": "简短描述（如：标题字重不一致）",
-  "element": "问题所在元素的语义描述（如：主操作按钮 Now）",
-  "figma_node": "从 Figma JSON 中复制该元素对应节点的精确 name 值（区分大小写，必须能在 JSON 中找到完全一致的 name）。如果没有 Figma 数据则省略此字段",
+  "element": "问题所在元素的中文语义描述（如：主操作按钮）",
+  "node_index": 编号清单中对应元素的编号数字（如果有清单则必填，没有清单则省略）,
   "type": "视觉 或 布局 或 内容一致性",
   "priority": "高 或 中 或 低",
-  "expected": "设计稿精确值（来自 Figma 数据）或定性描述",
+  "expected": "设计稿精确值（来自编号清单）或定性描述",
   "actual": "开发稿的定性差异描述（不猜数值）",
   "desc": "客观差异描述",
   "design_box": [y_min, x_min, y_max, x_max],
   "dev_box": [y_min, x_min, y_max, x_max]
 }
 
+注意：design_box 和 dev_box 在有编号清单时为可选（系统用 node_index 定位），在纯图片模式时为必填。
 如果没有发现差异，返回 {"issues": []}。`;
 
 function parseB64(b64str) {
@@ -108,46 +82,10 @@ export default async function handler(req, res) {
     const design = parseB64(designImage);
     const dev = parseB64(devImage);
 
-    // 如果有 Figma 设计属性数据，追加到 prompt（JSON 安全截断）
+    // 如果有 Figma 编号清单，追加到 prompt
     let propsContext = '';
-    if (designProps && Object.keys(designProps).length > 0) {
-      let propsJson = JSON.stringify(designProps, null, 2);
-      if (propsJson.length > 10000) {
-        // 分级精简：保留颜色值，去掉冗余结构
-        const slim = JSON.parse(JSON.stringify(designProps));
-        function simplifyNode(node) {
-          if (!node || typeof node !== 'object') return;
-          if (Array.isArray(node.fills)) node.fills = node.fills.map(f => {
-            if (f.type === 'SOLID' && f.color) return { color: f.color, opacity: f.opacity };
-            return f.color || f.type;
-          }).filter(Boolean);
-          if (Array.isArray(node.effects)) node.effects = node.effects.map(e => {
-            const r = { type: e.type };
-            if (e.color) r.color = e.color;
-            if (e.radius != null) r.radius = e.radius;
-            return r;
-          });
-          if (Array.isArray(node.strokes)) node.strokes = node.strokes.map(s => {
-            if (s.color) return { color: s.color };
-            return s.type;
-          }).filter(Boolean);
-          if (Array.isArray(node.children)) node.children.forEach(simplifyNode);
-        }
-        Object.values(slim).forEach(simplifyNode);
-        propsJson = JSON.stringify(slim, null, 2);
-
-        // 如果仍超限，砍最深子节点
-        if (propsJson.length > 10000) {
-          function pruneDeep(node, d) {
-            if (!node || typeof node !== 'object') return;
-            if (d >= 4 && node.children) { delete node.children; return; }
-            if (Array.isArray(node.children)) node.children.forEach(c => pruneDeep(c, d + 1));
-          }
-          Object.values(slim).forEach(n => pruneDeep(n, 0));
-          propsJson = JSON.stringify(slim, null, 2);
-        }
-      }
-      propsContext = `\n\n【Figma 精确设计属性】以下是从 Figma API 读取的权威设计数据。\n重要：\n1. "expected" 字段必须引用其中的精确值\n2. "element" 字段必须使用下方 JSON 中节点的精确 "name" 值（系统据此从 Figma 坐标精确定位标注框）\n${propsJson}`;
+    if (designProps?.nodeSummary) {
+      propsContext = `\n\n【Figma 元素编号清单】以下是设计稿中的元素列表，每个元素有唯一编号。发现问题时请在 node_index 字段返回对应编号。\n${designProps.nodeSummary}`;
     }
 
     const requestBody = {

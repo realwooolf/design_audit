@@ -1636,128 +1636,22 @@ function getSelectedFigmaFrameIds() {
 
 // 全局存储 Figma 设计属性数据，供 AI 分析时使用
 let figmaDesignProps = null;
+// 编号节点列表（含 bbox 坐标），前端定位用
+let figmaNodeListMap = null;  // nodeId → nodeList[]
+// 编号清单文本，发给 Gemini 用
+let figmaNodeSummaryMap = null;  // nodeId → summaryText
 
-// 从 Figma 节点树构建 name → 相对坐标（百分比）的扁平映射
-// frameBox 是根 Frame 的 absoluteBoundingBox {x, y, width, height}
-// 每个 key 存候选数组（同名节点可能有多个：按钮 vs 容器）
-function buildFigmaPositionMap(nodeTree, frameBox) {
-  const map = {};
-  if (!nodeTree || !frameBox || !frameBox.width || !frameBox.height) return map;
-
-  function addToMap(key, pos) {
-    if (!key) return;
-    if (!map[key]) map[key] = [];
-    map[key].push(pos);
-  }
-
-  function walk(node) {
-    if (!node) return;
-    if (node.x != null && node.y != null && node.width != null && node.height != null) {
-      const relX = node.x - frameBox.x;
-      const relY = node.y - frameBox.y;
-      const left = Math.max(0, Math.min(100, (relX / frameBox.width) * 100));
-      const top = Math.max(0, Math.min(100, (relY / frameBox.height) * 100));
-      const width = Math.max(1, Math.min(100 - left, (node.width / frameBox.width) * 100));
-      const height = Math.max(1, Math.min(100 - top, (node.height / frameBox.height) * 100));
-      const pos = {
-        left: left.toFixed(2) + '%',
-        top: top.toFixed(2) + '%',
-        width: width.toFixed(2) + '%',
-        height: height.toFixed(2) + '%',
-        _area: width * height // 面积，用于优先选小元素
-      };
-      const key = (node.name || '').trim().toLowerCase();
-      addToMap(key, pos);
-      // 原名（保留大小写）
-      const origKey = (node.name || '').trim();
-      if (origKey && origKey.toLowerCase() !== origKey) addToMap(origKey, pos);
-      // 智能剪枝的父节点名
-      if (node._parentName) {
-        addToMap(node._parentName.trim().toLowerCase(), pos);
-        const parentOrig = node._parentName.trim();
-        if (parentOrig.toLowerCase() !== parentOrig) addToMap(parentOrig, pos);
-      }
-    }
-    if (Array.isArray(node.children)) {
-      node.children.forEach(walk);
-    }
-  }
-
-  walk(nodeTree);
-  return map;
-}
-
-// 从候选数组中选面积最小的（小元素 = 具体控件，大元素 = 容器）
-function pickSmallest(candidates) {
-  if (!candidates || candidates.length === 0) return null;
-  if (candidates.length === 1) return candidates[0];
-  return candidates.reduce((best, c) => (c._area < best._area ? c : best));
-}
-
-// 根据 Gemini 返回的 element 名称在 Figma 位置映射中查找最佳匹配
-// designBox: 可选，Gemini 返回的 design_box [yMin,xMin,yMax,xMax]，用于位置验证
-function matchFigmaPosition(elementName, posMap, designBox) {
-  if (!elementName || !posMap) return null;
-  const name = elementName.trim().toLowerCase();
-
-  // 位置验证函数：检查候选位置是否和 Gemini 报告的 design_box 一致
-  function verifyPosition(candidate) {
-    if (!candidate || !designBox || !Array.isArray(designBox) || designBox.length !== 4) return candidate;
-    const [yMin, xMin, yMax, xMax] = designBox;
-    const geminiCX = (xMin + xMax) / 2 / 10; // 0-1000 转百分比
-    const geminiCY = (yMin + yMax) / 2 / 10;
-    const figmaCX = parseFloat(candidate.left) + parseFloat(candidate.width) / 2;
-    const figmaCY = parseFloat(candidate.top) + parseFloat(candidate.height) / 2;
-    const dist = Math.sqrt((geminiCX - figmaCX) ** 2 + (geminiCY - figmaCY) ** 2);
-    if (dist > 15) { // 中心点距离超 15%，匹配错误
-      console.log(`[DesignCheck] 位置验证失败: "${elementName}" Figma(${figmaCX.toFixed(1)},${figmaCY.toFixed(1)}) vs Gemini(${geminiCX.toFixed(1)},${geminiCY.toFixed(1)}) 距离=${dist.toFixed(1)}`);
-      return null;
-    }
-    return candidate;
-  }
-
-  // 1. 精确匹配 → 选最小元素
-  if (posMap[name]) {
-    const result = verifyPosition(pickSmallest(posMap[name]));
-    if (result) return result;
-  }
-
-  // 2. 包含匹配：Figma 节点名包含 element 名，或反过来
-  let bestCandidates = null;
-  let bestScore = 0;
-  for (const [key, candidates] of Object.entries(posMap)) {
-    const k = key.toLowerCase();
-    if (k.includes(name) || name.includes(k)) {
-      const score = name.includes(k) ? k.length : k.length * 0.8;
-      if (score > bestScore) {
-        bestScore = score;
-        bestCandidates = candidates;
-      }
-    }
-  }
-  if (bestCandidates) {
-    const result = verifyPosition(pickSmallest(bestCandidates));
-    if (result) return result;
-  }
-
-  // 3. 关键词匹配：拆分 element 名称为关键词，找重合度最高的
-  const keywords = name.split(/[\s\/\-_,，。]+/).filter(w => w.length > 1);
-  if (keywords.length === 0) return null;
-
-  bestScore = 0;
-  bestCandidates = null;
-  for (const [key, candidates] of Object.entries(posMap)) {
-    const k = key.toLowerCase();
-    const matched = keywords.filter(kw => k.includes(kw)).length;
-    if (matched > bestScore) {
-      bestScore = matched;
-      bestCandidates = candidates;
-    }
-  }
-  if (bestScore > 0) {
-    return verifyPosition(pickSmallest(bestCandidates));
-  }
-  return null;
+// 通过编号从 nodeList 中取精确坐标
+function getNodeByIndex(index, nodeList) {
+  if (!nodeList || index == null) return null;
+  const node = nodeList.find(n => n.index === index);
+  if (!node || !node.bbox) return null;
+  return {
+    left: node.bbox.left.toFixed(2) + '%',
+    top: node.bbox.top.toFixed(2) + '%',
+    width: node.bbox.width.toFixed(2) + '%',
+    height: node.bbox.height.toFixed(2) + '%',
+  };
 }
 
 async function exportFigmaImages(fileKey, nodeIds, token) {
@@ -1776,7 +1670,7 @@ async function exportFigmaImages(fileKey, nodeIds, token) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'props', fileKey, nodeIds, token }),
-      }).catch(() => null)
+      }).catch(err => { console.warn('[DesignCheck] Figma props 获取失败:', err.message); return null; })
     ]);
     clearTimeout(_figmaExportTimeout);
     const data = await resp.json();
@@ -1788,7 +1682,25 @@ async function exportFigmaImages(fileKey, nodeIds, token) {
     // 保存设计属性（即使获取失败也不阻断流程）
     if (propsResp?.ok) {
       const propsData = await propsResp.json().catch(() => null);
-      if (propsData?.props) figmaDesignProps = propsData.props;
+      if (propsData?.props) {
+        figmaDesignProps = propsData.props;
+        console.log('[DesignCheck] Figma 设计属性已获取，节点数:', Object.keys(propsData.props).length);
+      } else {
+        console.warn('[DesignCheck] Figma props 响应无数据');
+      }
+      // 存储编号节点列表和清单
+      if (propsData?.indexedNodes) {
+        figmaNodeListMap = {};
+        figmaNodeSummaryMap = {};
+        for (const [nid, data] of Object.entries(propsData.indexedNodes)) {
+          figmaNodeListMap[nid] = data.nodeList || [];
+          figmaNodeSummaryMap[nid] = data.nodeSummary || '';
+        }
+        const totalNodes = Object.values(figmaNodeListMap).reduce((sum, list) => sum + list.length, 0);
+        console.log('[DesignCheck] 编号清单已生成，共', totalNodes, '个节点');
+      }
+    } else {
+      console.warn('[DesignCheck] Figma props 请求未成功, status:', propsResp?.status);
     }
 
     const successImages = (data.images || []).filter(img => img.image);
@@ -2798,11 +2710,12 @@ async function loadProject(projectId) {
             <span class="tag-type">${escHtml(issue.type)}</span>
           </div>
           <div class="text-xs font-medium text-gray-900 mb-0.5 leading-snug"><span class="text-[10px] text-gray-400 font-mono mr-1">#${issue.issue_number}</span>${escHtml(issue.title)}</div>
-          <div class="text-[10px] text-gray-400 mb-2">${new Date(issue.created_at).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-          <div class="grid grid-cols-2 gap-2 mb-2">
-            <div class="compare-left"><div class="text-xs text-gray-500 mb-1.5">设计稿预期</div><span class="font-mono text-xs text-gray-900">${escHtml(issue.expected_val || '')}</span></div>
-            <div class="compare-right"><div class="flex items-center justify-between mb-1.5"><span class="text-xs text-gray-400">实际</span><span class="text-xs text-red-500 font-medium">✕ 不匹配</span></div><span class="font-mono text-xs text-red-500">${escHtml(issue.actual_val || '')}</span></div>
-          </div>
+          <div class="text-[10px] text-gray-400 mb-1">${new Date(issue.created_at).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+          ${issue.description ? `<div class="text-[10px] text-gray-400 mb-2">${escHtml(issue.description)}</div>` : ''}
+          ${(issue.expected_val || issue.actual_val) ? (() => { const _isC = v => /^#[0-9a-fA-F]{3,8}$/.test((v||'').trim()); return `<div class="grid grid-cols-2 gap-2 mb-2">
+            <div class="compare-left"><div class="text-xs text-gray-500 mb-1.5">设计稿预期</div><div class="flex items-center gap-1.5">${_isC(issue.expected_val) ? `<div class="w-5 h-5 rounded flex-shrink-0" style="background:${escHtml(issue.expected_val)}"></div>` : ''}<span class="font-mono text-xs text-gray-900">${escHtml(issue.expected_val || '')}</span></div></div>
+            <div class="compare-right"><div class="flex items-center justify-between mb-1.5"><span class="text-xs text-gray-400">实际</span><span class="text-xs text-red-500 font-medium">✕ 不匹配</span></div><div class="flex items-center gap-1.5">${_isC(issue.actual_val) ? `<div class="w-5 h-5 rounded flex-shrink-0" style="background:${escHtml(issue.actual_val)}"></div>` : ''}<span class="font-mono text-xs text-red-500">${escHtml(issue.actual_val || '')}</span></div></div>
+          </div>`; })() : ''}
           <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-gray-100 meta-grid">
             <div><div class="meta-label mb-1">修改人员</div><div class="relative"><div onclick="event.stopPropagation();toggleDropdown('${adId}')" class="issue-select ${issue.assignee_name ? '' : 'text-gray-400'}">${assigneeHtml}<svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></div><div id="${adId}" class="issue-dd hidden"></div></div></div>
             <div><div class="meta-label mb-1">修改进展</div><div class="relative"><div onclick="event.stopPropagation();toggleDropdown('${sdId}')" class="issue-select"><span class="w-1.5 h-1.5 rounded-full bg-${statusColor}-500 flex-shrink-0"></span><span class="flex-1 text-${statusColor}-500">${escHtml(issue.status)}</span><svg class="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></div><div id="${sdId}" class="issue-dd hidden"></div></div></div>
@@ -3368,44 +3281,35 @@ async function analyzePair(btnEl) {
       addGridOverlay(devRawB64),
     ]);
 
-    // 按 pair 匹配对应的 Figma 设计属性 + 构建位置映射
-    let pairProps = undefined;
-    let figmaPosMap = null; // Figma 节点名 → CSS 百分比坐标
-    if (figmaDesignProps) {
+    // 按 pair 匹配对应的 Figma 编号清单
+    let pairNodeList = null;   // 该 pair 的编号节点数组（用于定位）
+    let pairNodeSummary = null; // 该 pair 的文本清单（发给 Gemini）
+    if (figmaNodeListMap) {
       const nodeId = pair.dataset.figmaNodeId;
-      if (nodeId && figmaDesignProps[nodeId]) {
-        pairProps = { [nodeId]: figmaDesignProps[nodeId] };
-        // 根 Frame 的坐标就是这个节点自身
-        const root = figmaDesignProps[nodeId];
-        if (root.x != null && root.y != null && root.width && root.height) {
-          figmaPosMap = buildFigmaPositionMap(root, { x: root.x, y: root.y, width: root.width, height: root.height });
-          const keys = Object.keys(figmaPosMap);
-          console.log(`[DesignCheck] Figma 位置映射已构建，共 ${keys.length} 个节点`);
-          console.log('[DesignCheck] Figma 节点名:', keys.slice(0, 30).join(', '));
-        }
+      if (nodeId && figmaNodeListMap[nodeId]) {
+        pairNodeList = figmaNodeListMap[nodeId];
+        pairNodeSummary = figmaNodeSummaryMap?.[nodeId] || null;
+        console.log(`[DesignCheck] 编号清单匹配成功，nodeId=${nodeId}，${pairNodeList.length} 个节点`);
       } else {
-        // 没匹配到特定节点，回退到全部 props
-        pairProps = figmaDesignProps;
-        // 尝试用第一个节点作为 Frame
-        const firstKey = Object.keys(figmaDesignProps)[0];
+        // 回退到第一个节点
+        const firstKey = Object.keys(figmaNodeListMap)[0];
         if (firstKey) {
-          const root = figmaDesignProps[firstKey];
-          if (root.x != null && root.y != null && root.width && root.height) {
-            figmaPosMap = buildFigmaPositionMap(root, { x: root.x, y: root.y, width: root.width, height: root.height });
-            const keys = Object.keys(figmaPosMap);
-            console.log(`[DesignCheck] Figma 位置映射（回退），共 ${keys.length} 个节点`);
-            console.log('[DesignCheck] Figma 节点名:', keys.slice(0, 30).join(', '));
-          }
+          pairNodeList = figmaNodeListMap[firstKey];
+          pairNodeSummary = figmaNodeSummaryMap?.[firstKey] || null;
+          console.log(`[DesignCheck] 编号清单（回退），${pairNodeList.length} 个节点`);
         }
       }
     }
+
+    const analyzeProps = pairNodeSummary ? { nodeSummary: pairNodeSummary } : undefined;
+    console.log('[DesignCheck] 发送给 Gemini:', pairNodeSummary ? `编号清单 ${pairNodeSummary.length} 字符` : '无 Figma 数据（纯图片模式）');
 
     const _analyzeAC = new AbortController();
     const _analyzeTimeout = setTimeout(() => _analyzeAC.abort(), 120000); // 2 分钟超时
     const resp = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ designImage: designGridB64, devImage: devGridB64, designProps: pairProps }),
+      body: JSON.stringify({ designImage: designGridB64, devImage: devGridB64, designProps: analyzeProps }),
       signal: _analyzeAC.signal,
     });
 
@@ -3459,99 +3363,37 @@ async function analyzePair(btnEl) {
       if ((xMax - xMin) < 10 || (yMax - yMin) < 10) return false; // 太小不合理
       return true;
     }
-    // 比较两个 box 中心点偏差（阈值为 0-1000 空间中的距离）
-    function isBoxConsistent(boxA, boxB, threshold) {
-      const cAx = (boxA[1] + boxA[3]) / 2, cAy = (boxA[0] + boxA[2]) / 2;
-      const cBx = (boxB[1] + boxB[3]) / 2, cBy = (boxB[0] + boxB[2]) / 2;
-      return Math.abs(cAx - cBx) <= threshold && Math.abs(cAy - cBy) <= threshold;
-    }
-    // 获取设计稿坐标（用于 dev 回退）
-    function getDesignFallback(issue, figmaPos) {
-      if (figmaPos) return figmaPos;
-      if (issue.design_box) return box2dToCSS(issue.design_box);
-      if (issue.design_area) return clampArea(issue.design_area);
-      return null;
-    }
-
     picked.forEach((issue, idx) => {
-      // === 设计稿定位：优先 Figma 精确坐标 ===
-      let figmaPos = null;
-      if (figmaPosMap) {
-        const nodeName = issue.figma_node || issue.element;
-        if (nodeName) {
-          figmaPos = matchFigmaPosition(nodeName, figmaPosMap, issue.design_box);
-          if (figmaPos) {
-            console.log(`[DesignCheck] #${idx+1} "${nodeName}" → Figma 精确定位:`, figmaPos);
-          } else {
-            console.log(`[DesignCheck] #${idx+1} "${nodeName}" Figma 未匹配`);
-          }
+      // === 编号匹配：node_index → 精确 Figma 坐标 ===
+      let figmaCoords = null;
+      if (issue.node_index != null && pairNodeList) {
+        figmaCoords = getNodeByIndex(issue.node_index, pairNodeList);
+        if (figmaCoords) {
+          console.log(`[DesignCheck] #${idx+1} 编号匹配 node_index=${issue.node_index}:`, figmaCoords);
+        } else {
+          console.log(`[DesignCheck] #${idx+1} node_index=${issue.node_index} 无效，回退 box_2d`);
         }
       }
 
-      // 设计稿：Figma 坐标 > design_box > 旧格式
-      if (figmaPos) {
-        issue.design_area = figmaPos;
-      } else if (issue.design_box) {
+      // 设计稿定位：Figma 编号 > design_box > 旧格式
+      if (figmaCoords) {
+        issue.design_area = figmaCoords;
+      } else if (issue.design_box && isValidBox(issue.design_box)) {
         issue.design_area = box2dToCSS(issue.design_box);
       } else if (issue.design_area) {
         issue.design_area = clampArea(issue.design_area);
       }
 
-      // === 开发稿定位：优先 Figma 坐标（精确），dev_box 仅作参考 ===
-      // 核心逻辑：设计稿和开发稿是同一页面，元素位置通常一致
-      // Figma 坐标像素级精确 vs Gemini dev_box 精度很差（mAP 0.34）
-      if (figmaPos) {
-        // 有 Figma 精确坐标：直接用于开发稿
-        // 如果 dev_box 存在且和 Figma 坐标偏差不大，用 dev_box（因为开发稿中位置可能微调）
-        // 否则信任 Figma 坐标
-        if (issue.dev_box && isValidBox(issue.dev_box)) {
-          const figmaBox = [
-            parseFloat(figmaPos.top) * 10,
-            parseFloat(figmaPos.left) * 10,
-            (parseFloat(figmaPos.top) + parseFloat(figmaPos.height)) * 10,
-            (parseFloat(figmaPos.left) + parseFloat(figmaPos.width)) * 10
-          ];
-          if (isBoxConsistent(issue.dev_box, figmaBox, 80)) {
-            // dev_box 和 Figma 坐标接近，说明 dev_box 可信，使用 dev_box
-            issue.dev_area = box2dToCSS(issue.dev_box);
-            console.log(`[DesignCheck] #${idx+1} dev_box 与 Figma 一致，使用 dev_box:`, issue.dev_area);
-          } else {
-            // dev_box 偏差大，不可信，使用 Figma 坐标
-            issue.dev_area = figmaPos;
-            console.log(`[DesignCheck] #${idx+1} dev_box [${issue.dev_box}] 偏离 Figma，使用 Figma 坐标:`, figmaPos);
-          }
-        } else {
-          // 没有 dev_box，直接用 Figma 坐标
-          issue.dev_area = figmaPos;
-          console.log(`[DesignCheck] #${idx+1} 使用 Figma 精确坐标:`, figmaPos);
-        }
+      // 开发稿定位：Figma 编号 > dev_box > 回退到设计稿
+      if (figmaCoords) {
+        issue.dev_area = figmaCoords;
       } else if (issue.dev_box && isValidBox(issue.dev_box)) {
-        // 没有 Figma 数据，只能用 dev_box
-        const designRef = issue.design_box || null;
-        if (designRef && isValidBox(designRef) && !isBoxConsistent(issue.dev_box, designRef, 100)) {
-          const designFallback = getDesignFallback(issue, null);
-          if (designFallback) {
-            issue.dev_area = designFallback;
-            console.log(`[DesignCheck] #${idx+1} dev_box 偏差过大，回退到设计稿坐标`);
-          } else {
-            issue.dev_area = box2dToCSS(issue.dev_box);
-          }
-        } else {
-          issue.dev_area = box2dToCSS(issue.dev_box);
-          console.log(`[DesignCheck] #${idx+1} 无 Figma，使用 dev_box:`, issue.dev_area);
-        }
+        issue.dev_area = box2dToCSS(issue.dev_box);
       } else {
-        // 既没有 Figma 也没有有效 dev_box
-        const designFallback = getDesignFallback(issue, null);
-        if (designFallback) {
-          issue.dev_area = designFallback;
-          console.log(`[DesignCheck] #${idx+1} 无 Figma 无 dev_box，使用设计稿坐标`);
-        } else if (issue.dev_area) {
-          issue.dev_area = clampArea(issue.dev_area);
-        }
+        issue.dev_area = issue.design_area || clampArea(issue.dev_area);
       }
 
-      issue._posSource = figmaPos ? 'figma+gemini' : 'gemini';
+      issue._posSource = figmaCoords ? 'figma-index' : 'gemini-box2d';
       if (issue.area) issue.area = clampArea(issue.area);
     });
 
