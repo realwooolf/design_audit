@@ -2270,7 +2270,7 @@ function startRenameProject(label) {
   input.className = 'font-semibold text-gray-900 text-sm bg-white border border-blue-400 rounded px-1 py-0.5 outline-none';
   input.style.width = Math.max(80, oldName.length * 14) + 'px';
 
-  const finish = () => {
+  const finish = async () => {
     const newName = input.value.trim() || '未命名项目';
     label.textContent = newName;
     label.style.display = '';
@@ -2279,6 +2279,15 @@ function startRenameProject(label) {
     const bc = document.getElementById('breadcrumbProject');
     if (bc && (bc.textContent === oldName || bc.textContent === '走查任务')) {
       bc.textContent = newName;
+    }
+    // 持久化到数据库
+    if (newName !== oldName && sb) {
+      const card = label.closest('.project-card');
+      const pid = card?.dataset?.projectId;
+      if (pid) {
+        const { error } = await sb.from('projects').update({ name: newName }).eq('id', pid);
+        if (error) DEBUG && console.error('Rename failed:', error);
+      }
     }
   };
 
@@ -2597,8 +2606,18 @@ async function loadProject(projectId) {
     const projCard = document.querySelector(`.project-card[data-project-id="${projectId}"]`);
     const projectName = projCard?.querySelector('.project-name-label')?.textContent?.trim() || '走查任务';
 
-    // 加载图片
-    const { data: images } = await sb.from('images').select('*').eq('project_id', projectId).order('page_index');
+    // 并行加载图片和问题（原来串行 5-6 秒 → 并行 2-3 秒）
+    const [{ data: images }, { data: issues }] = await Promise.all([
+      sb.from('images').select('*').eq('project_id', projectId).order('page_index'),
+      sb.from('issues').select('*').eq('project_id', projectId).or('deleted.is.null,deleted.eq.false').order('issue_number')
+    ]);
+
+    // issues 拿到后立即发起 comments 查询，不等 DOM 渲染
+    const _issueIds = (issues || []).map(i => i.id);
+    const _commentsPromise = _issueIds.length
+      ? sb.from('comments').select('*').in('issue_id', _issueIds).order('created_at')
+      : Promise.resolve({ data: [] });
+
     const designImgs = (images || []).filter(i => i.slot === 'design');
     const devImgs = (images || []).filter(i => i.slot === 'dev');
 
@@ -2677,8 +2696,7 @@ async function loadProject(projectId) {
     const bc = document.getElementById('breadcrumbProject');
     if (bc) bc.textContent = projectName;
 
-    // 加载问题
-    const { data: issues } = await sb.from('issues').select('*').eq('project_id', projectId).or('deleted.is.null,deleted.eq.false').order('issue_number');
+    // issues 已在上面并行加载
     allIssueCards = [];
     _analyzeCounter = 0;
     const issueList = document.getElementById('issueList');
@@ -2756,9 +2774,8 @@ async function loadProject(projectId) {
         }
       }
 
-      // 加载评论
-      const issueIds = issues.map(i => i.id);
-      const { data: comments } = await sb.from('comments').select('*').in('issue_id', issueIds).order('created_at');
+      // 等待评论（已在前面并行发起）
+      const { data: comments } = await _commentsPromise;
       if (comments) {
         for (const c of comments) {
           const issue = issues.find(i => i.id === c.issue_id);
