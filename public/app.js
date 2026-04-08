@@ -2193,7 +2193,7 @@ function addProjectCard(name, reviewStatus, createdAt, prepend = true, skipUpdat
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="${c.stroke}" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2" stroke-linecap="round"/></svg>
           </div>
           <div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-0.5">
               <h3 class="project-name-label font-semibold text-gray-900 text-sm">${escHtml(name)}</h3>
               <button class="rename-btn" onclick="event.stopPropagation();startRenameProject(this.previousElementSibling)" title="重命名"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l2.651 2.651M19.513 7.138L8.404 18.247l-3.535.707.707-3.535L16.686 4.31a2 2 0 012.827 2.828z"/></svg></button>
               ${reviewStatus === '待设计验收' ? '<span class="status-badge badge-review">待设计验收</span>' : reviewStatus === '已通过' ? '<span class="status-badge badge-passed">已通过</span>' : '<span class="status-badge badge-active">进行中</span>'}
