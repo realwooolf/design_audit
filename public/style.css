@@ -363,6 +363,9 @@
   .figma-modal .tip-box { background:rgba(198,93,59,.06); border-radius:8px; padding:10px 12px; font-size:12px; color:#6B6B64; margin-top:4px; }
   .project-card-new { background: rgba(255,255,255,.55); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.5); border-radius: 18px; box-shadow: 0 2px 12px rgba(31,31,31,.04); transition: all .3s cubic-bezier(.4,0,.2,1); overflow: hidden; }
   .project-card-new:hover { transform: translateY(-3px); box-shadow: 0 8px 32px rgba(31,31,31,.08); border-color: rgba(198,93,59,.2); }
+  .rename-btn { opacity: 0; border: none; background: none; cursor: pointer; padding: 2px; border-radius: 4px; color: #9A9A90; transition: opacity .2s, color .15s; flex-shrink: 0; }
+  .project-card-new:hover .rename-btn { opacity: 1; }
+  .rename-btn:hover { color: var(--color-terracotta); background: rgba(198,93,59,.08); }
   .project-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .cta-btn { background: linear-gradient(135deg, var(--color-terracotta) 0%, #D4775A 100%); color: #fff; border: none; border-radius: 999px; padding: 10px 28px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .3s cubic-bezier(.4,0,.2,1); letter-spacing: .01em; }
   .cta-btn:hover { box-shadow: 0 6px 24px rgba(198,93,59,.3); transform: translateY(-2px); }
