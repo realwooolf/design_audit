@@ -3895,6 +3895,26 @@ document.addEventListener('DOMContentLoaded', () => {
 // Also init if DOM already loaded
 if (document.readyState !== 'loading') initDragSystem();
 
+// ── Comment send button: only active when input has text ────────
+(function(){
+  function bindCommentInputs(root) {
+    (root || document).querySelectorAll('.comment-send').forEach(function(btn){
+      var input = btn.parentElement.querySelector('input[type="text"]');
+      if (!input || input._commentBound) return;
+      input._commentBound = true;
+      input.addEventListener('input', function(){
+        if (this.value.trim()) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function(){ bindCommentInputs(); });
+  if (document.readyState !== 'loading') bindCommentInputs();
+  // Re-bind when new cards are added dynamically
+  var ob = new MutationObserver(function(){ bindCommentInputs(); });
+  ob.observe(document.body, { childList: true, subtree: true });
+})();
+
 // 重绘 spotlight canvas：选中的标注全亮，未选中的半暗
 function refreshSpotlightCanvas() {
   document.querySelectorAll('.spotlight-canvas-overlay').forEach(cvs => {

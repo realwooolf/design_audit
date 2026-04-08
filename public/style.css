@@ -231,13 +231,14 @@
   .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--color-warm-gray); border-radius: 3px; }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #B8B8B0; }
   input, textarea, select { font-family: inherit; }
-  .comment-send { background:var(--color-ink); color:#fff; border:none; border-radius:12px; padding:6px 14px; font-size:12px; font-weight:500; cursor:pointer; transition:all .25s cubic-bezier(.4,0,.2,1); white-space:nowrap; }
+  .comment-send { background:var(--color-warm-gray); color:#fff; border:none; border-radius:12px; padding:6px 14px; font-size:12px; font-weight:500; cursor:not-allowed; transition:all .25s cubic-bezier(.4,0,.2,1); white-space:nowrap; opacity:.45; }
+  .comment-send.active { background:var(--color-terracotta); opacity:1; cursor:pointer; }
   .status-tab { position:relative; display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:10px; font-size:12px; font-weight:500; color:#6B6B64; background:rgba(244,241,234,.5); backdrop-filter:blur(8px); border:1px solid rgba(209,209,201,.4); cursor:pointer; transition:all .25s cubic-bezier(.4,0,.2,1); white-space:nowrap; }
   .status-tab-dot { position:absolute; top:1px; right:1px; width:6px; height:6px; border-radius:50%; background:#ef4444; pointer-events:none; }
   .status-tab:hover { border-color:#B8B8B0; background:rgba(234,231,224,.7); transform:translateY(-1px); }
   .status-tab.active { background:rgba(198,93,59,.1); border-color:rgba(198,93,59,.3); color:var(--color-terracotta); box-shadow:0 2px 8px rgba(198,93,59,.1); }
   .status-tab-count { font-size:11px; font-weight:700; min-width:14px; text-align:center; }
-  .comment-send:hover { background:#3A3A34; box-shadow: 0 4px 16px rgba(31,31,31,.15); transform: translateY(-1px); }
+  .comment-send.active:hover { background:#A14A2E; box-shadow: 0 4px 16px rgba(198,93,59,.15); transform: translateY(-1px); }
   /* 上传预览 */
   .upload-preview { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; align-items:center; }
   .upload-preview .thumb { width:72px; height:72px; border-radius:8px; object-fit:cover; border:1px solid var(--color-warm-gray); cursor:pointer; transition:opacity .15s; }
