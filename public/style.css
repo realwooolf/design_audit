@@ -199,7 +199,7 @@
   .page-frame { background: #DDD9D1; border-radius: 16px; overflow: hidden; }
   .page-frame-header { padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(0,0,0,.06); }
   .frame-dot { width: 8px; height: 8px; border-radius: 50%; }
-  .right-panel { width: 460px; min-width: 260px; max-width: 600px; flex-shrink: 0; border-left: none; overflow-y: auto; background: rgba(244,241,234,.75); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: -8px 0 32px rgba(31,31,31,.04); }
+  .right-panel { width: 460px; min-width: 260px; max-width: 600px; flex-shrink: 0; border-left: none; overflow: hidden; background: rgba(244,241,234,.95); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: -8px 0 32px rgba(31,31,31,.04); }
   /* Drag handle between canvas and right panel */
   .panel-resizer { width: 5px; flex-shrink: 0; cursor: col-resize; background: transparent; transition: all .2s; position: relative; z-index: 10; }
   .panel-resizer:hover, .panel-resizer.dragging { background: var(--color-terracotta); border-radius: 3px; box-shadow: 0 0 8px rgba(198,93,59,.3); }
@@ -226,6 +226,10 @@
   .dropdown-item:hover { background: #EAE7E0; }
   .ai-block { background: linear-gradient(135deg, rgba(255,194,51,.1) 0%, rgba(198,93,59,.08) 100%); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(198,93,59,.15); border-radius: 16px; padding: 12px; }
   .scrollbar-thin { scrollbar-width: thin; scrollbar-color: var(--color-warm-gray) transparent; }
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: var(--color-warm-gray); border-radius: 3px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #B8B8B0; }
   input, textarea, select { font-family: inherit; }
   .comment-send { background:var(--color-ink); color:#fff; border:none; border-radius:12px; padding:6px 14px; font-size:12px; font-weight:500; cursor:pointer; transition:all .25s cubic-bezier(.4,0,.2,1); white-space:nowrap; }
   .status-tab { position:relative; display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:10px; font-size:12px; font-weight:500; color:#6B6B64; background:rgba(244,241,234,.5); backdrop-filter:blur(8px); border:1px solid rgba(209,209,201,.4); cursor:pointer; transition:all .25s cubic-bezier(.4,0,.2,1); white-space:nowrap; }
