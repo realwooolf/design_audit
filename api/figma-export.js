@@ -285,6 +285,17 @@ function extractDesignProps(node, depth, maxDepth) {
   return props;
 }
 
+// 字重数字 → 设计术语映射
+const WEIGHT_MAP = {
+  100: 'Thin', 200: 'Extra Light', 300: 'Light',
+  400: 'Regular', 500: 'Medium', 600: 'Semi-Bold',
+  700: 'Bold', 800: 'Extra Bold', 900: 'Black'
+};
+function weightLabel(w) {
+  const name = WEIGHT_MAP[w];
+  return name ? name + ' (' + w + ')' : String(w);
+}
+
 // 生成编号节点列表：遍历 Figma 节点树，为每个有视觉属性的节点分配编号
 // 返回 { nodeList: [...], nodeSummary: "文本清单" }
 function generateIndexedNodeList(rootNode) {
@@ -332,7 +343,7 @@ function generateIndexedNodeList(rootNode) {
     if (node.type === 'TEXT' && node.style) {
       const s = node.style;
       if (s.fontSize) { entry.fontSize = s.fontSize; summaryParts.push(s.fontSize + 'px'); hasVisual = true; }
-      if (s.fontWeight) { entry.fontWeight = s.fontWeight; summaryParts.push('字重' + s.fontWeight); hasVisual = true; }
+      if (s.fontWeight) { entry.fontWeight = s.fontWeight; summaryParts.push('字重' + weightLabel(s.fontWeight)); hasVisual = true; }
       if (s.fontFamily) { entry.fontFamily = s.fontFamily; summaryParts.push(s.fontFamily); hasVisual = true; }
     }
     // cornerRadius
@@ -390,7 +401,7 @@ function generateIndexedNodeList(rootNode) {
     const props = [];
     if (n.fill) props.push('填充' + n.fill);
     if (n.fontSize) props.push(n.fontSize + 'px');
-    if (n.fontWeight) props.push('字重' + n.fontWeight);
+    if (n.fontWeight) props.push('字重' + weightLabel(n.fontWeight));
     if (n.fontFamily) props.push(n.fontFamily);
     if (n.cornerRadius) props.push('圆角' + n.cornerRadius + 'px');
     if (n.strokeColor) props.push('描边' + n.strokeColor + (n.strokeWeight ? ' ' + n.strokeWeight + 'px' : ''));

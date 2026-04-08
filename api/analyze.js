@@ -1,6 +1,26 @@
 const PRIMARY_MODEL = 'gemini-2.5-pro';
 const FALLBACK_MODEL = 'gemini-2.5-flash';
 
+// 简单内存限流：每 IP 每分钟最多 MAX_REQ 次
+const RATE_LIMIT = { windowMs: 60000, maxReq: 5 };
+const _rlMap = new Map();
+function checkRateLimit(req) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';
+  const now = Date.now();
+  const hits = (_rlMap.get(ip) || []).filter(t => now - t < RATE_LIMIT.windowMs);
+  if (hits.length >= RATE_LIMIT.maxReq) return false;
+  hits.push(now);
+  _rlMap.set(ip, hits);
+  // 防内存泄漏：清理过期 IP
+  if (_rlMap.size > 500) {
+    for (const [k, v] of _rlMap) { if (v.every(t => now - t > RATE_LIMIT.windowMs)) _rlMap.delete(k); }
+  }
+  return true;
+}
+
+// 请求体大小限制 20MB
+const MAX_BODY_SIZE = 20 * 1024 * 1024;
+
 const PROMPT = `你是一个专业的 UI 走查差异检测工具。你的唯一任务是：对比设计稿和开发稿两张图片，找出视觉还原差异。
 
 输入：
@@ -25,6 +45,7 @@ const PROMPT = `你是一个专业的 UI 走查差异检测工具。你的唯一
 - 地图、卫星图、实景照片等动态渲染内容：这些区域内的细节在不同设备/渲染时会自然变化，不属于还原度问题，不要报告
 - "新增元素"类问题：必须确认该元素确实只在开发稿中存在、设计稿中完全没有对应元素
 - 如果编号清单中某元素的属性与图片视觉一致，即使图片看起来略有差异（渲染/压缩导致），也不要报告
+- 禁止重复：每个元素只能报告一次，禁止对同一个元素重复报告相同或相似的问题。如果同一问题影响多个相同组件，只报告一次并在 desc 中说明
 
 数值规则：
 1. "expected"（设计稿预期值）：
@@ -36,8 +57,8 @@ const PROMPT = `你是一个专业的 UI 走查差异检测工具。你的唯一
 3. 绝对禁止：输出"(估算值)"、"(估计)"、"约 #xxx"、"大概 16px"等。不确定就用文字描述。
 
 元素定位：
-- 如果有编号清单：在 node_index 字段填写对应元素的编号数字。系统会自动使用 Figma 精确坐标定位标注框，无需你提供 box_2d
-- 如果没有编号清单（纯图片模式）：提供 design_box 和 dev_box，格式为 [y_min, x_min, y_max, x_max]（0-1000 归一化整数值），参考图片上的红色网格标签定位
+- 如果有编号清单（最重要）：必须在 node_index 字段填写对应元素的编号数字。系统会自动使用 Figma 精确坐标定位标注框。有编号清单时禁止自行提供 box_2d，必须通过 node_index 定位
+- 如果没有编号清单（纯图片模式）：提供 design_box 和 dev_box，格式为 [y_min, x_min, y_max, x_max]（0-1000 归一化整数值）。box_2d 坐标必须紧密包围目标元素边界，请仔细对照图片上的红色网格刻度确认数值
 - 匹配编号时，通过元素的类型、视觉属性（颜色、字号等）和位置提示词来确认正确的编号。如果有多个相似元素，根据位置提示词区分
 
 描述要求：
@@ -71,6 +92,17 @@ function parseB64(b64str) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // 限流检查
+  if (!checkRateLimit(req)) {
+    return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
+  }
+
+  // 请求体大小检查
+  const bodySize = JSON.stringify(req.body).length;
+  if (bodySize > MAX_BODY_SIZE) {
+    return res.status(413).json({ error: '请求体过大，单次请求不超过 20MB' });
   }
 
   try {

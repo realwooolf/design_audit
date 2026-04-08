@@ -1,3 +1,6 @@
+// ── DEBUG 开关：仅本地开发环境输出日志 ──────────────────────────
+const DEBUG = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
 // ── HTML escape utility (XSS prevention) ──────────────────────
 function escHtml(str) {
   const d = document.createElement('div');
@@ -1555,7 +1558,7 @@ function showFigmaImportHelp() {
         <div style="margin-top:10px;padding:8px 12px;background:#F9F7F4;border-radius:6px;border:1px solid #E8E5DF;font-size:12px;color:#8A8A82;line-height:1.6;">
           <b style="color:#6B6B64;">备注：不同链接的导入范围</b><br>• Frame 链接 → 导入 1 个画板<br>• Section 链接 → 导入该分区下所有 Frame<br>• Page 链接 → 导入该页面下所有顶层 Frame
           <div style="margin-top:8px;">
-            <img src="figma-structure.png" alt="Figma 层级结构：Page → Section → Frame" style="width:100%;max-width:480px;border-radius:6px;border:1px solid #e8e5df;display:block;" />
+            <img src="figma-structure.png" alt="Figma 层级结构：Page → Section → Frame" loading="lazy" style="width:100%;max-width:480px;border-radius:6px;border:1px solid #e8e5df;display:block;" />
           </div>
         </div>
       </div></div>
@@ -1670,7 +1673,7 @@ async function exportFigmaImages(fileKey, nodeIds, token) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'props', fileKey, nodeIds, token }),
-      }).catch(err => { console.warn('[DesignCheck] Figma props 获取失败:', err.message); return null; })
+      }).catch(err => { DEBUG && console.warn('[DesignCheck] Figma props 获取失败:', err.message); return null; })
     ]);
     clearTimeout(_figmaExportTimeout);
     const data = await resp.json();
@@ -1684,9 +1687,9 @@ async function exportFigmaImages(fileKey, nodeIds, token) {
       const propsData = await propsResp.json().catch(() => null);
       if (propsData?.props) {
         figmaDesignProps = propsData.props;
-        console.log('[DesignCheck] Figma 设计属性已获取，节点数:', Object.keys(propsData.props).length);
+        DEBUG && console.log('[DesignCheck] Figma 设计属性已获取，节点数:', Object.keys(propsData.props).length);
       } else {
-        console.warn('[DesignCheck] Figma props 响应无数据');
+        DEBUG && console.warn('[DesignCheck] Figma props 响应无数据');
       }
       // 存储编号节点列表和清单
       if (propsData?.indexedNodes) {
@@ -1697,10 +1700,10 @@ async function exportFigmaImages(fileKey, nodeIds, token) {
           figmaNodeSummaryMap[nid] = data.nodeSummary || '';
         }
         const totalNodes = Object.values(figmaNodeListMap).reduce((sum, list) => sum + list.length, 0);
-        console.log('[DesignCheck] 编号清单已生成，共', totalNodes, '个节点');
+        DEBUG && console.log('[DesignCheck] 编号清单已生成，共', totalNodes, '个节点');
       }
     } else {
-      console.warn('[DesignCheck] Figma props 请求未成功, status:', propsResp?.status);
+      DEBUG && console.warn('[DesignCheck] Figma props 请求未成功, status:', propsResp?.status);
     }
 
     const successImages = (data.images || []).filter(img => img.image);
@@ -2068,7 +2071,7 @@ async function startCompare(btn) {
         uploadedFiles[devKey] = reorderedDev;
       }
     } catch (e) {
-      console.warn('AI 配对失败，使用默认顺序:', e);
+      DEBUG && console.warn('AI 配对失败，使用默认顺序:', e);
     }
     btn.childNodes.forEach(n => { if (n.nodeType === 3 && n.textContent.trim()) n.textContent = '比对中… '; });
   }
@@ -3289,20 +3292,20 @@ async function analyzePair(btnEl) {
       if (nodeId && figmaNodeListMap[nodeId]) {
         pairNodeList = figmaNodeListMap[nodeId];
         pairNodeSummary = figmaNodeSummaryMap?.[nodeId] || null;
-        console.log(`[DesignCheck] 编号清单匹配成功，nodeId=${nodeId}，${pairNodeList.length} 个节点`);
+        DEBUG && console.log(`[DesignCheck] 编号清单匹配成功，nodeId=${nodeId}，${pairNodeList.length} 个节点`);
       } else {
         // 回退到第一个节点
         const firstKey = Object.keys(figmaNodeListMap)[0];
         if (firstKey) {
           pairNodeList = figmaNodeListMap[firstKey];
           pairNodeSummary = figmaNodeSummaryMap?.[firstKey] || null;
-          console.log(`[DesignCheck] 编号清单（回退），${pairNodeList.length} 个节点`);
+          DEBUG && console.log(`[DesignCheck] 编号清单（回退），${pairNodeList.length} 个节点`);
         }
       }
     }
 
     const analyzeProps = pairNodeSummary ? { nodeSummary: pairNodeSummary } : undefined;
-    console.log('[DesignCheck] 发送给 Gemini:', pairNodeSummary ? `编号清单 ${pairNodeSummary.length} 字符` : '无 Figma 数据（纯图片模式）');
+    DEBUG && console.log('[DesignCheck] 发送给 Gemini:', pairNodeSummary ? `编号清单 ${pairNodeSummary.length} 字符` : '无 Figma 数据（纯图片模式）');
 
     const _analyzeAC = new AbortController();
     const _analyzeTimeout = setTimeout(() => _analyzeAC.abort(), 120000); // 2 分钟超时
@@ -3322,11 +3325,23 @@ async function analyzePair(btnEl) {
 
     const data = await resp.json();
     // 调试：打印 Gemini 原始返回
-    console.log('[DesignCheck] Gemini 原始返回:', JSON.stringify(data.issues, null, 2));
+    DEBUG && console.log('[DesignCheck] Gemini 原始返回:', JSON.stringify(data.issues, null, 2));
     // 客户端过滤：去掉明显无效的 issue
-    const picked = (data.issues || []).filter(issue => {
+    const _filtered = (data.issues || []).filter(issue => {
       if (!issue.desc || issue.desc.length < 5) return false;
       if (issue.expected && issue.actual && issue.expected.trim() === issue.actual.trim()) return false;
+      return true;
+    });
+    // 去重：title 完全相同的只保留第一个
+    const _seenTitles = new Set();
+    const picked = _filtered.filter(issue => {
+      const key = issue.title?.trim();
+      if (!key) return true;
+      if (_seenTitles.has(key)) {
+        DEBUG && console.log('[DesignCheck] 去重：跳过重复问题 "' + key + '"');
+        return false;
+      }
+      _seenTitles.add(key);
       return true;
     });
 
@@ -3369,9 +3384,26 @@ async function analyzePair(btnEl) {
       if (issue.node_index != null && pairNodeList) {
         figmaCoords = getNodeByIndex(issue.node_index, pairNodeList);
         if (figmaCoords) {
-          console.log(`[DesignCheck] #${idx+1} 编号匹配 node_index=${issue.node_index}:`, figmaCoords);
+          DEBUG && console.log(`[DesignCheck] #${idx+1} 编号匹配 node_index=${issue.node_index}:`, figmaCoords);
         } else {
-          console.log(`[DesignCheck] #${idx+1} node_index=${issue.node_index} 无效，回退 box_2d`);
+          DEBUG && console.log(`[DesignCheck] #${idx+1} node_index=${issue.node_index} 无效，尝试模糊匹配`);
+        }
+      }
+      // === 模糊匹配容错：node_index 失败时，按 element 名称在 nodeList 中搜索 ===
+      if (!figmaCoords && issue.element && pairNodeList) {
+        const el = issue.element.trim();
+        const matched = pairNodeList.find(n => n.name && (
+          n.name.includes(el) || el.includes(n.name) ||
+          el.split(/[、，,\s]+/).some(kw => kw.length >= 2 && n.name.includes(kw))
+        ));
+        if (matched && matched.bbox) {
+          figmaCoords = {
+            left: matched.bbox.left.toFixed(2) + '%',
+            top: matched.bbox.top.toFixed(2) + '%',
+            width: matched.bbox.width.toFixed(2) + '%',
+            height: matched.bbox.height.toFixed(2) + '%',
+          };
+          DEBUG && console.log(`[DesignCheck] #${idx+1} 模糊匹配 "${el}" → "${matched.name}":`, figmaCoords);
         }
       }
 

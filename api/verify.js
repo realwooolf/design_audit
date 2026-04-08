@@ -1,5 +1,23 @@
 const MODEL = 'gemini-2.5-flash';
 
+// 简单内存限流：每 IP 每分钟最多 MAX_REQ 次
+const RATE_LIMIT = { windowMs: 60000, maxReq: 5 };
+const _rlMap = new Map();
+function checkRateLimit(req) {
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';
+  const now = Date.now();
+  const hits = (_rlMap.get(ip) || []).filter(t => now - t < RATE_LIMIT.windowMs);
+  if (hits.length >= RATE_LIMIT.maxReq) return false;
+  hits.push(now);
+  _rlMap.set(ip, hits);
+  if (_rlMap.size > 500) {
+    for (const [k, v] of _rlMap) { if (v.every(t => now - t > RATE_LIMIT.windowMs)) _rlMap.delete(k); }
+  }
+  return true;
+}
+
+const MAX_BODY_SIZE = 20 * 1024 * 1024;
+
 function parseB64(b64str) {
   const match = b64str.match(/^data:(image\/[^;]+);base64,(.+)$/);
   if (match) return { mimeType: match[1], data: match[2] };
@@ -9,6 +27,15 @@ function parseB64(b64str) {
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!checkRateLimit(req)) {
+    return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
+  }
+
+  const bodySize = JSON.stringify(req.body).length;
+  if (bodySize > MAX_BODY_SIZE) {
+    return res.status(413).json({ error: '请求体过大，单次请求不超过 20MB' });
   }
 
   try {
