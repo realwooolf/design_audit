@@ -6,17 +6,17 @@
 <title>设计-开发对话演示</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F4F1EA; min-height: 100vh; display: flex; justify-content: center; padding: 40px 20px; }
+  body { font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif; background: #FFFFFF; min-height: 100vh; display: flex; justify-content: center; padding: 40px 20px; color: #37352F; }
   .container { width: 380px; }
-  .issue-card { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); border: 1px solid rgba(209,209,201,.3); }
+  .issue-card { background: #fff; border-radius: 8px; padding: 16px; box-shadow: none; border: 1px solid #E8E5DE; }
   .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
   .badge-high { background: #FEF2F2; color: #DC2626; }
-  .tag-type { font-size: 10px; color: #9A9A90; background: #F5F5F0; padding: 2px 6px; border-radius: 4px; }
+  .tag-type { font-size: 10px; color: #4A4A44; background: #F7F7F5; padding: 2px 6px; border-radius: 6px; font-weight: 500; }
   .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0; }
   .compare-left, .compare-right { padding: 8px; border-radius: 8px; }
-  .compare-left { background: #F9FAFB; }
-  .compare-right { background: #FEF2F2; }
-  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 10px; border-top: 1px solid #F0F0EC; margin-top: 10px; }
+  .compare-left { background: #fff; border: 1px solid #E8E5DE; }
+  .compare-right { background: #FEF2F2; border: 1px solid #FECACA; }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-top: 10px; border-top: 1px solid #E8E5DE; margin-top: 10px; }
   .meta-label { font-size: 10px; color: #9CA3AF; margin-bottom: 4px; }
   .meta-value { font-size: 11px; color: #374151; display: flex; align-items: center; gap: 4px; }
   .avatar-sm { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; flex-shrink: 0; }
@@ -43,7 +43,7 @@
   .comment-input { display: flex; gap: 6px; margin-top: 10px; align-items: center; }
   .comment-input input { flex: 1; font-size: 11px; border: 1px solid #E5E7EB; border-radius: 8px; padding: 6px 10px; outline: none; background: #fff; }
   .comment-input input:focus { border-color: #93C5FD; }
-  .comment-input button { font-size: 11px; padding: 5px 12px; border: none; border-radius: 8px; background: #C65D3B; color: #fff; cursor: pointer; font-weight: 500; white-space: nowrap; }
+  .comment-input button { font-size: 11px; padding: 5px 12px; border: none; border-radius: 8px; background: #37352F; color: #fff; cursor: pointer; font-weight: 500; white-space: nowrap; }
 </style>
 </head>
 <body>

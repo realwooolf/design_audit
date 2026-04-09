@@ -104,7 +104,7 @@ function selectIssue(id) {
   matchingAnnos.forEach(a => {
     a.classList.remove('dimmed');
     a.classList.add('anno-active');
-    a.style.boxShadow = '0 0 0 3px rgba(198,93,59,.3)';
+    a.style.boxShadow = '0 0 0 3px rgba(35,131,226,.2)';
   });
   // 高亮模式下重绘 canvas，突出选中区域
   if (currentAnnoMode === 'spotlight') refreshSpotlightCanvas();
@@ -330,7 +330,7 @@ async function submitVerify() {
 
   const slot = getOrCreateVerifySlot(card);
   slot.className = 'rounded-lg px-3 py-2 text-xs text-gray-500 mb-2 flex items-center gap-2 bg-gray-100';
-  slot.innerHTML = `<div style="width:12px;height:12px;border:2px solid #C65D3B;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div> AI 校验中…`;
+  slot.innerHTML = `<div style="width:12px;height:12px;border:2px solid #37352F;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div> AI 校验中…`;
 
   // 查找设计稿图片
   const designInfo = findDesignImageForIssue(id);
@@ -596,7 +596,7 @@ const FEISHU_TEAM = [
   { name: '小雨', dept: 'UX 设计部', role: 'UI 设计师', initials: '雨', bg: '#9333ea', online: true },
 ];
 const FEISHU_USERS = [
-  { name: '陈明', dept: '产品设计部', role: '产品经理', initials: '陈', bg: '#C65D3B', tag: '外部' },
+  { name: '陈明', dept: '产品设计部', role: '产品经理', initials: '陈', bg: '#37352F', tag: '外部' },
   { name: '刘洋', dept: '前端工程部', role: '前端工程师', initials: '刘', bg: '#7c3aed', tag: '内部' },
   { name: '赵婷', dept: 'UX 设计部', role: 'UX 设计师', initials: '赵', bg: '#db2777', tag: '外部' },
   { name: '孙浩', dept: '后端工程部', role: '后端工程师', initials: '孙', bg: '#d97706', tag: '内部' },
@@ -1892,7 +1892,7 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
   const group = document.createElement('div');
   group.id = 'canvas-' + name;
   group.style.cssText = 'position:absolute; left:60px; top:60px; width:860px;';
-  group.innerHTML = '<div class="canvas-label" style="color:#C65D3B; margin-bottom:10px;">\u25cf ' + name + ' &nbsp;\xb7&nbsp; ' + maxLen + '个页面</div>';
+  group.innerHTML = '<div class="canvas-label" style="color:#37352F; margin-bottom:10px;">\u25cf ' + name + ' &nbsp;\xb7&nbsp; ' + maxLen + '个页面</div>';
 
   for (let i = 0; i < maxLen; i++) {
     const pageWrapper = document.createElement('div');
@@ -1923,7 +1923,7 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
       img.style.cssText = 'width:100%;display:block;border-radius:8px;';
       dWrap.appendChild(img);
     } else {
-      dWrap.innerHTML = '<div style="height:200px;background:#EAE7E0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应设计稿</div>';
+      dWrap.innerHTML = '<div style="height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应设计稿</div>';
     }
     pair.appendChild(dWrap);
 
@@ -1945,7 +1945,7 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
       img.style.cssText = 'width:100%;display:block;border-radius:8px;';
       vWrap.appendChild(img);
     } else {
-      vWrap.innerHTML = '<div style="height:200px;background:#EAE7E0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应开发稿</div>';
+      vWrap.innerHTML = '<div style="height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应开发稿</div>';
     }
     pair.appendChild(vWrap);
 
@@ -1963,7 +1963,7 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
       <div class="text-xs text-gray-400 mb-3">AI 正在分析中，请稍候...</div>
       <div class="analyze-panel-progress" style="margin:0 24px;">
         <div style="height:3px;background:rgba(209,209,201,.3);border-radius:4px;overflow:hidden;">
-          <div id="panelProgressFill" style="height:100%;width:0%;background:#C65D3B;border-radius:4px;transition:width .4s ease;"></div>
+          <div id="panelProgressFill" style="height:100%;width:0%;background:#37352F;border-radius:4px;transition:width .4s ease;"></div>
         </div>
         <div class="text-[10px] text-gray-400 mt-1.5 text-center" id="panelProgressText">准备分析...</div>
       </div>
@@ -2176,7 +2176,7 @@ function addProjectCard(name, reviewStatus, createdAt, prepend = true, skipUpdat
 
   // 随机图标颜色
   const colors = [
-    { bg: 'rgba(198,93,59,.1)', stroke: 'var(--color-terracotta)' },
+    { bg: 'rgba(35,131,226,.08)', stroke: 'var(--color-terracotta)' },
     { bg: 'rgba(107,75,175,.1)', stroke: '#6B4BAF' },
     { bg: 'rgba(34,163,74,.1)', stroke: '#22A34A' },
     { bg: 'rgba(59,130,246,.1)', stroke: '#3B82F6' },
@@ -2446,9 +2446,9 @@ function showOnboardingGuide() {
         <div style="background:#fff;border-radius:12px;padding:16px 20px;box-shadow:0 8px 32px rgba(0,0,0,.18);position:relative;">
           <div style="font-size:14px;font-weight:600;color:#1F1F1F;margin-bottom:6px;">如何新增走查问题</div>
           <div style="font-size:12px;color:#6B6B64;line-height:1.6;">
-            「<span style="color:#C65D3B;font-weight:600;">线框</span>」模式下，在设计稿或者开发稿上拖拽画框，即可手动添加走查问题。
+            「<span style="color:#37352F;font-weight:600;">线框</span>」模式下，在设计稿或者开发稿上拖拽画框，即可手动添加走查问题。
           </div>
-          <button onclick="dismissGuide()" style="margin-top:12px;width:100%;padding:7px 0;background:#C65D3B;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;">我知道了</button>
+          <button onclick="dismissGuide()" style="margin-top:12px;width:100%;padding:7px 0;background:#37352F;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;">我知道了</button>
           <div style="position:absolute;bottom:-8px;left:${rect.left + rect.width / 2 - left - 8}px;width:16px;height:16px;background:#fff;transform:rotate(45deg);box-shadow:4px 4px 8px rgba(0,0,0,.06);"></div>
         </div>
       </div>
@@ -2631,7 +2631,7 @@ async function loadProject(projectId) {
       const group = document.createElement('div');
       group.id = 'canvas-' + projectName;
       group.style.cssText = 'position:absolute; left:60px; top:60px; width:860px;';
-      group.innerHTML = '<div class="canvas-label" style="color:#C65D3B; margin-bottom:10px;">\u25cf ' + escHtml(projectName) + ' &nbsp;\xb7&nbsp; ' + maxLen + '个页面</div>';
+      group.innerHTML = '<div class="canvas-label" style="color:#37352F; margin-bottom:10px;">\u25cf ' + escHtml(projectName) + ' &nbsp;\xb7&nbsp; ' + maxLen + '个页面</div>';
 
       for (let i = 0; i < maxLen; i++) {
         const dUrl = designImgs[i]?.public_url || '';
@@ -2659,7 +2659,7 @@ async function loadProject(projectId) {
           img.style.cssText = 'width:100%;display:block;border-radius:8px;';
           dWrap.appendChild(img);
         } else {
-          dWrap.innerHTML = '<div style="height:200px;background:#EAE7E0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应设计稿</div>';
+          dWrap.innerHTML = '<div style="height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应设计稿</div>';
         }
         pair.appendChild(dWrap);
 
@@ -2682,7 +2682,7 @@ async function loadProject(projectId) {
           img.style.cssText = 'width:100%;display:block;border-radius:8px;';
           vWrap.appendChild(img);
         } else {
-          vWrap.innerHTML = '<div style="height:200px;background:#EAE7E0;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应开发稿</div>';
+          vWrap.innerHTML = '<div style="height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应开发稿</div>';
         }
         pair.appendChild(vWrap);
 
@@ -3013,7 +3013,7 @@ function showProximityAnalyzeIcon(cx, cy) {
     document.body.appendChild(icon);
     proximityIcon = icon;
     // Highlight the target image
-    closest.style.outline = '2px solid #C65D3B';
+    closest.style.outline = '2px solid #37352F';
     closest.style.outlineOffset = '2px';
   } else {
     clearProximityAnalyzeIcon();
@@ -3471,7 +3471,7 @@ async function analyzePair(btnEl) {
       if (hint) hint.remove();
     }
 
-    const annoColor = '#C65D3B';
+    const annoColor = '#37352F';
     const priorityClass = { '高': 'priority-high', '中': 'priority-mid', '低': 'priority-low' };
 
     // 计算当前 pair 在 canvas 中的页码索引
@@ -3695,7 +3695,7 @@ async function analyzePair(btnEl) {
     if (analyzeHint) {
       analyzeHint.innerHTML = `
         <div class="text-xs text-gray-400 mb-4">分析失败，请重试</div>
-        <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#C65D3B;color:#fff;cursor:pointer;">
+        <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#37352F;color:#fff;cursor:pointer;">
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>
           重新分析
         </button>
@@ -3707,7 +3707,7 @@ async function analyzePair(btnEl) {
         issueList.innerHTML = `
           <div class="text-center" style="padding-top:40vh;" id="analyzeHint">
             <div class="text-xs text-gray-400 mb-4">分析失败，请重试</div>
-            <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#C65D3B;color:#fff;cursor:pointer;">
+            <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#37352F;color:#fff;cursor:pointer;">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>
               重新分析
             </button>
@@ -4150,8 +4150,8 @@ function setAnnoMode(mode) {
         </select>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px;">
-        <button id="drawIssueCancel" style="flex:1;padding:6px;font-size:12px;border:1px solid #D1D1C9;border-radius:8px;background:#F4F1EA;cursor:pointer;color:#6B6B64;">取消</button>
-        <button id="drawIssueConfirm" style="flex:1;padding:6px;font-size:12px;border:none;border-radius:8px;background:#C65D3B;color:#fff;cursor:pointer;font-weight:500;">新增</button>
+        <button id="drawIssueCancel" style="flex:1;padding:6px;font-size:12px;border:1px solid #E8E5DE;border-radius:8px;background:#FFFFFF;cursor:pointer;color:#6B6B64;">取消</button>
+        <button id="drawIssueConfirm" style="flex:1;padding:6px;font-size:12px;border:none;border-radius:8px;background:#37352F;color:#fff;cursor:pointer;font-weight:500;">新增</button>
       </div>
     `;
 

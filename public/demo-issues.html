@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>问题集中展示 — Demo</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif; background: #FFFFFF; min-height: 100vh; padding: 48px 20px; color: #37352F; }
+  .page-header { text-align: center; margin-bottom: 40px; }
+  .page-header h1 { font-size: 20px; font-weight: 700; color: #1F2937; margin-bottom: 6px; }
+  .page-header p { font-size: 13px; color: #9A9A90; }
+  .cards { display: flex; flex-direction: column; align-items: center; gap: 24px; }
+
+  /* 卡片 */
+  .issue-card { background: #fff; border-radius: 8px; padding: 18px; box-shadow: none; border: 1px solid #E8E5DE; width: 420px; max-width: 95vw; }
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+  .badge-high { background: #FEF2F2; color: #DC2626; }
+  .badge-mid { background: #FFF8E1; color: #B45309; }
+  .badge-low { background: #F0FDF4; color: #16A34A; }
+  .tag-type { font-size: 10px; color: #4A4A44; background: #F7F7F5; padding: 2px 6px; border-radius: 6px; font-weight: 500; }
+  .card-title { font-size: 14px; font-weight: 600; color: #1F2937; margin: 6px 0 2px; }
+  .card-date { font-size: 10px; color: #D1D5DB; margin-bottom: 10px; }
+
+  /* 设计预期 vs 实际 */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .compare-left, .compare-right { padding: 8px; border-radius: 8px; }
+  .compare-left { background: #fff; border: 1px solid #E8E5DE; }
+  .compare-right { background: #FEF2F2; border: 1px solid #FECACA; }
+  .compare-label { font-size: 10px; color: #6B7280; margin-bottom: 4px; }
+  .compare-value { font-family: 'SF Mono', Monaco, monospace; font-size: 11px; color: #1F2937; }
+  .compare-right .compare-value { color: #DC2626; }
+  .compare-mismatch { font-size: 10px; color: #DC2626; font-weight: 500; float: right; }
+
+  /* 元信息 */
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 0; border-top: 1px solid #E8E5DE; border-bottom: 1px solid #E8E5DE; margin-bottom: 10px; }
+  .meta-label { font-size: 10px; color: #9CA3AF; margin-bottom: 4px; }
+  .meta-value { font-size: 11px; color: #374151; display: flex; align-items: center; gap: 4px; }
+  .avatar-sm { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; flex-shrink: 0; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  /* 状态流转时间线 */
+  .status-flow { display: flex; align-items: center; gap: 0; margin-bottom: 12px; flex-wrap: wrap; }
+  .flow-node { font-size: 9px; padding: 2px 8px; border-radius: 10px; font-weight: 500; white-space: nowrap; }
+  .flow-arrow { font-size: 10px; color: #D1D5DB; margin: 0 3px; }
+  .flow-gray { background: #F3F4F6; color: #6B7280; }
+  .flow-orange { background: #FFF7ED; color: #EA580C; }
+  .flow-purple { background: #FAF5FF; color: #9333EA; }
+  .flow-red { background: #FEF2F2; color: #DC2626; }
+  .flow-green { background: #F0FDF4; color: #16A34A; }
+
+  /* 对话区 */
+  .conversation-label { font-size: 12px; font-weight: 500; color: #9CA3AF; padding-bottom: 6px; }
+  .conversation { margin-top: 4px; }
+  .msg { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; }
+  .msg + .msg { margin-top: 6px; }
+  .msg-avatar { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .msg-body { flex: 1; min-width: 0; }
+  .msg-header { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; flex-wrap: wrap; }
+  .msg-name { font-size: 11px; font-weight: 600; color: #374151; }
+  .msg-role { font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 500; }
+  .msg-role-designer { background: #EFF6FF; color: #3B82F6; }
+  .msg-role-dev { background: #ECFDF5; color: #059669; }
+  .msg-time { font-size: 10px; color: #D1D5DB; }
+  .msg-text { font-size: 11px; color: #4B5563; background: #F9FAFB; border-radius: 8px; padding: 6px 10px; line-height: 1.6; }
+  .msg-text.pass { background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; }
+  .msg-text.reject { background: #FEF2F2; border: 1px solid #FECACA; color: #991B1B; }
+  .msg-text code { font-family: 'SF Mono', Monaco, monospace; font-size: 10px; background: #fff; border: 1px solid #E5E7EB; padding: 1px 4px; border-radius: 3px; }
+
+  /* 系统消息 */
+  .msg-system { text-align: center; padding: 6px 0; }
+  .msg-system span { font-size: 9px; color: #787774; background: #F7F7F5; padding: 2px 10px; border-radius: 10px; }
+
+  /* 输入框 */
+  .comment-input { display: flex; gap: 6px; margin-top: 12px; align-items: center; }
+  .comment-input input { flex: 1; font-size: 11px; border: 1px solid #E5E7EB; border-radius: 8px; padding: 6px 10px; outline: none; background: #fff; }
+  .comment-input button { font-size: 11px; padding: 5px 12px; border: none; border-radius: 8px; background: #37352F; color: #fff; cursor: pointer; font-weight: 500; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>问题集中展示</h1>
+  <p>展示历史进度、对话</p>
+</div>
+
+<div class="cards">
+
+<!-- ============================================================ -->
+<!-- 卡片 1：颜色偏差 — 高优 / 一轮修复通过 -->
+<!-- ============================================================ -->
+<div class="issue-card">
+  <div style="display:flex; align-items:center; gap:6px;">
+    <span class="badge badge-high">高优先级</span>
+    <span class="tag-type">视觉</span>
+  </div>
+  <div class="card-title">#1 Banner 背景色偏差</div>
+  <div class="card-date">创建于 2026-04-03 · 首页模块</div>
+
+  <div class="compare-grid">
+    <div class="compare-left">
+      <div class="compare-label">设计稿预期</div>
+      <div class="compare-value">#1A1A2E</div>
+    </div>
+    <div class="compare-right">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span class="compare-label">实际</span>
+        <span class="compare-mismatch">✕ 不匹配</span>
+      </div>
+      <div class="compare-value">偏蓝灰 #2C2C3E</div>
+    </div>
+  </div>
+
+  <div class="meta-grid">
+    <div>
+      <div class="meta-label">负责人</div>
+      <div class="meta-value">
+        <div class="avatar-sm" style="background:#DCFCE7; color:#16A34A;">张</div>
+        张伟 (前端)
+      </div>
+    </div>
+    <div>
+      <div class="meta-label">状态</div>
+      <div class="meta-value">
+        <div class="status-dot" style="background:#22C55E;"></div>
+        <span style="color:#16A34A;">已关闭</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-flow">
+    <span class="flow-node flow-gray">待分配</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-orange">处理中</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-purple">待复核</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-green">已关闭 ✓</span>
+  </div>
+
+  <div class="conversation-label">▾ 评论 · 4条</div>
+  <div class="conversation">
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">小雨</span>
+          <span class="msg-role msg-role-designer">设计师</span>
+          <span class="msg-time">· 04-03 14:20</span>
+        </div>
+        <div class="msg-text">@张伟 首页 banner 背景色偏了，设计稿是 <code>#1A1A2E</code>，实际看起来偏蓝灰 <code>#2C2C3E</code>，请核对</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">张伟</span>
+          <span class="msg-role msg-role-dev">前端</span>
+          <span class="msg-time">· 04-03 14:48</span>
+        </div>
+        <div class="msg-text">收到，查了下是暗色主题适配时自动叠了一层 <code>rgba(255,255,255,0.05)</code> 的蒙层导致的，我把蒙层去掉</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">张伟</span>
+          <span class="msg-role msg-role-dev">前端</span>
+          <span class="msg-time">· 04-03 16:05</span>
+        </div>
+        <div class="msg-text">已修复，去掉了 <code>.banner-overlay</code>，背景色直接用 <code>#1A1A2E</code>，已部署预览环境</div>
+      </div>
+    </div>
+
+    <div class="msg-system"><span>张伟 将状态改为「待复核」</span></div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">小雨</span>
+          <span class="msg-role msg-role-designer">设计师</span>
+          <span class="msg-time">· 04-03 17:30</span>
+        </div>
+        <div class="msg-text pass">确认一致了，验收通过 ✓</div>
+      </div>
+    </div>
+
+    <div class="comment-input">
+      <input type="text" placeholder="留言..." />
+      <button>发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 卡片 2：间距偏小 — 中优 / 退回重修 -->
+<!-- ============================================================ -->
+<div class="issue-card">
+  <div style="display:flex; align-items:center; gap:6px;">
+    <span class="badge badge-mid">中优先级</span>
+    <span class="tag-type">布局</span>
+  </div>
+  <div class="card-title">#2 搜索结果卡片间距偏小</div>
+  <div class="card-date">创建于 2026-04-04 · 搜索结果页</div>
+
+  <div class="compare-grid">
+    <div class="compare-left">
+      <div class="compare-label">设计稿预期</div>
+      <div class="compare-value">gap: 16px</div>
+    </div>
+    <div class="compare-right">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span class="compare-label">实际</span>
+        <span class="compare-mismatch">✕ 不匹配</span>
+      </div>
+      <div class="compare-value">gap: 8px</div>
+    </div>
+  </div>
+
+  <div class="meta-grid">
+    <div>
+      <div class="meta-label">负责人</div>
+      <div class="meta-value">
+        <div class="avatar-sm" style="background:#DBEAFE; color:#2563EB;">李</div>
+        李明 (前端)
+      </div>
+    </div>
+    <div>
+      <div class="meta-label">状态</div>
+      <div class="meta-value">
+        <div class="status-dot" style="background:#22C55E;"></div>
+        <span style="color:#16A34A;">已关闭</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-flow">
+    <span class="flow-node flow-gray">待分配</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-orange">处理中</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-purple">待复核</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-red">已退回</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-orange">处理中</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-purple">待复核</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-green">已关闭 ✓</span>
+  </div>
+
+  <div class="conversation-label">▾ 评论 · 7条</div>
+  <div class="conversation">
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">小雨</span>
+          <span class="msg-role msg-role-designer">设计师</span>
+          <span class="msg-time">· 04-04 10:15</span>
+        </div>
+        <div class="msg-text">@李明 搜索结果列表的卡片间距，设计稿是 16px，现在只有 8px，太挤了</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">李</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">李明</span>
+          <span class="msg-role msg-role-dev">前端</span>
+          <span class="msg-time">· 04-04 10:40</span>
+        </div>
+        <div class="msg-text">我看了一下，列表组件用的是 <code>gap-2</code>（8px）。但改成 16px 在小屏上内容会不会显示不够？需要确认</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">小雨</span>
+          <span class="msg-role msg-role-designer">设计师</span>
+          <span class="msg-time">· 04-04 10:52</span>
+        </div>
+        <div class="msg-text">小屏可以保持 12px，大屏 16px，你用响应式处理一下</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">李</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">李明</span>
+          <span class="msg-role msg-role-dev">前端</span>
+          <span class="msg-time">· 04-04 14:20</span>
+        </div>
+        <div class="msg-text">改好了，<code>gap-3 md:gap-4</code>，请看一下</div>
+      </div>
+    </div>
+
+    <div class="msg-system"><span>李明 将状态改为「待复核」</span></div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">小雨</span>
+          <span class="msg-role msg-role-designer">设计师</span>
+          <span class="msg-time">· 04-04 15:10</span>
+        </div>
+        <div class="msg-text reject">大屏 OK 了，但小屏的间距还是 8px 没变，确认推了吗？退回修改</div>
+      </div>
+    </div>
+
+    <div class="msg-system"><span>小雨 将状态改为「已退回」</span></div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">李</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">李明</span>
+          <span class="msg-role msg-role-dev">前端</span>
+          <span class="msg-time">· 04-05 09:30</span>
+        </div>
+        <div class="msg-text">不好意思，上次只改了一个断点，漏了 <code>sm:</code> 前缀，现在补上了</div>
+      </div>
+    </div>
+
+    <div class="msg-system"><span>李明 将状态改为「待复核」</span></div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">小雨</span>
+          <span class="msg-role msg-role-designer">设计师</span>
+          <span class="msg-time">· 04-05 10:45</span>
+        </div>
+        <div class="msg-text pass">两端都对了，验收通过 ✓</div>
+      </div>
+    </div>
+
+    <div class="comment-input">
+      <input type="text" placeholder="留言..." />
+      <button>发送</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- 卡片 3：字重不匹配 — 低优 / 技术限制协商 -->
+<!-- ============================================================ -->
+<div class="issue-card">
+  <div style="display:flex; align-items:center; gap:6px;">
+    <span class="badge badge-low">低优先级</span>
+    <span class="tag-type">视觉</span>
+  </div>
+  <div class="card-title">#3 商家详情页标题字重不匹配</div>
+  <div class="card-date">创建于 2026-04-05 · 商家详情</div>
+
+  <div class="compare-grid">
+    <div class="compare-left">
+      <div class="compare-label">设计稿预期</div>
+      <div class="compare-value">font-weight: 600 (Semibold)</div>
+    </div>
+    <div class="compare-right">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span class="compare-label">实际</span>
+        <span class="compare-mismatch">✕ 不匹配</span>
+      </div>
+      <div class="compare-value">font-weight: 400 (Regular)</div>
+    </div>
+  </div>
+
+  <div class="meta-grid">
+    <div>
+      <div class="meta-label">负责人</div>
+      <div class="meta-value">
+        <div class="avatar-sm" style="background:#DCFCE7; color:#16A34A;">张</div>
+        张伟 (前端)
+      </div>
+    </div>
+    <div>
+      <div class="meta-label">状态</div>
+      <div class="meta-value">
+        <div class="status-dot" style="background:#22C55E;"></div>
+        <span style="color:#16A34A;">已关闭（遗留优化）</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-flow">
+    <span class="flow-node flow-gray">待分配</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-orange">处理中</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-purple">待复核</span><span class="flow-arrow">→</span>
+    <span class="flow-node flow-green">已关闭 ✓</span>
+  </div>
+
+  <div class="conversation-label">▾ 评论 · 7条</div>
+  <div class="conversation">
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">小雨</span>
+          <span class="msg-role msg-role-designer">设计师</span>
+          <span class="msg-time">· 04-05 11:00</span>
+        </div>
+        <div class="msg-text">@张伟 商家详情页标题字重应该是 Semibold（600），现在看起来是 Regular（400）</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">张伟</span>
+          <span class="msg-role msg-role-dev">前端</span>
+          <span class="msg-time">· 04-05 11:25</span>
+        </div>
+        <div class="msg-text">这里用的是 <code>PingFang SC</code>，但 web 端只加载了 Regular 和 Bold 两个字重，600 会 fallback 到 400。要不要换成 Bold（700）代替？</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">小雨</span>
+          <span class="msg-role msg-role-designer">设计师</span>
+          <span class="msg-time">· 04-05 11:38</span>
+        </div>
+        <div class="msg-text">Bold 会不会太粗？你可以截图给我看看 400/700 对比效果吗？</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">张伟</span>
+          <span class="msg-role msg-role-dev">前端</span>
+          <span class="msg-time">· 04-05 13:10</span>
+        </div>
+        <div class="msg-text">发了三组对比截图：400 / 600（本地系统字体）/ 700，你看哪个最接近设计稿效果</div>
+      </div>
+    </div>
+
+    <!-- 截图占位 -->
+    <div style="display:flex; gap:6px; padding:4px 0 4px 32px;">
+      <div style="width:90px; height:48px; background:#F3F4F6; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:9px; color:#9CA3AF; border:1px solid #E5E7EB;">400 Regular</div>
+      <div style="width:90px; height:48px; background:#F3F4F6; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:9px; color:#9CA3AF; border:1px solid #E5E7EB;">600 System</div>
+      <div style="width:90px; height:48px; background:#F3F4F6; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:9px; color:#9CA3AF; border:1px solid #E5E7EB;">700 Bold</div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">小雨</span>
+          <span class="msg-role msg-role-designer">设计师</span>
+          <span class="msg-time">· 04-05 14:00</span>
+        </div>
+        <div class="msg-text">700 确实有点粗，但比 400 好。先用 700 上线，后面我们统一引入 Medium（500）字重文件再调</div>
+      </div>
+    </div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">张伟</span>
+          <span class="msg-role msg-role-dev">前端</span>
+          <span class="msg-time">· 04-05 15:20</span>
+        </div>
+        <div class="msg-text">已改为 <code>font-weight: 700</code>，标题统一调整。留了个 TODO 注释后续换 500</div>
+      </div>
+    </div>
+
+    <div class="msg-system"><span>张伟 将状态改为「待复核」</span></div>
+
+    <div class="msg">
+      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-name">小雨</span>
+          <span class="msg-role msg-role-designer">设计师</span>
+          <span class="msg-time">· 04-05 16:40</span>
+        </div>
+        <div class="msg-text pass">OK 可以接受，先关闭。字重优化放下个版本 ✓</div>
+      </div>
+    </div>
+
+    <div class="comment-input">
+      <input type="text" placeholder="留言..." />
+      <button>发送</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- .cards -->
+
+</body>
+</html>
