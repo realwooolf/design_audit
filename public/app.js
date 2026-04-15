@@ -104,7 +104,7 @@ function selectIssue(id) {
   matchingAnnos.forEach(a => {
     a.classList.remove('dimmed');
     a.classList.add('anno-active');
-    a.style.boxShadow = '0 0 0 3px rgba(35,131,226,.2)';
+    a.style.boxShadow = '0 0 0 3px rgba(16,185,129,.2)';
   });
   // 高亮模式下重绘 canvas，突出选中区域
   if (currentAnnoMode === 'spotlight') refreshSpotlightCanvas();
@@ -330,7 +330,7 @@ async function submitVerify() {
 
   const slot = getOrCreateVerifySlot(card);
   slot.className = 'rounded-lg px-3 py-2 text-xs text-gray-500 mb-2 flex items-center gap-2 bg-gray-100';
-  slot.innerHTML = `<div style="width:12px;height:12px;border:2px solid #37352F;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div> AI 校验中…`;
+  slot.innerHTML = `<div style="width:12px;height:12px;border:2px solid #10B981;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div> AI 校验中…`;
 
   // 查找设计稿图片
   const designInfo = findDesignImageForIssue(id);
@@ -596,7 +596,7 @@ const FEISHU_TEAM = [
   { name: '小雨', dept: 'UX 设计部', role: 'UI 设计师', initials: '雨', bg: '#9333ea', online: true },
 ];
 const FEISHU_USERS = [
-  { name: '陈明', dept: '产品设计部', role: '产品经理', initials: '陈', bg: '#37352F', tag: '外部' },
+  { name: '陈明', dept: '产品设计部', role: '产品经理', initials: '陈', bg: '#6366f1', tag: '外部' },
   { name: '刘洋', dept: '前端工程部', role: '前端工程师', initials: '刘', bg: '#7c3aed', tag: '内部' },
   { name: '赵婷', dept: 'UX 设计部', role: 'UX 设计师', initials: '赵', bg: '#db2777', tag: '外部' },
   { name: '孙浩', dept: '后端工程部', role: '后端工程师', initials: '孙', bg: '#d97706', tag: '内部' },
@@ -1556,7 +1556,7 @@ function showFigmaImportHelp() {
       <div class="step"><div class="step-num">1</div><div class="step-text"><b>打开设计稿所在的 Figma 文件</b><br>在浏览器或 Figma 客户端中打开你要上传的设计稿所在的 Figma 文件。</div></div>
       <div class="step"><div class="step-num">2</div><div class="step-text"><b>复制文件链接</b><br>• <b>Frame / Section</b>：选中 → 右键 → Copy/Paste as → Copy link to selection<br>• <b>Page</b>：左上角页面列表 → 右键 → Copy link to page
         <div style="margin-top:10px;padding:8px 12px;background:#F9F7F4;border-radius:6px;border:1px solid #E8E5DF;font-size:12px;color:#8A8A82;line-height:1.6;">
-          <b style="color:#6B6B64;">备注：不同链接的导入范围</b><br>• Frame 链接 → 导入 1 个画板<br>• Section 链接 → 导入该分区下所有 Frame<br>• Page 链接 → 导入该页面下所有顶层 Frame
+          <b style="color:#1A1A1A;">备注：不同链接的导入范围</b><br>• Frame 链接 → 导入 1 个画板<br>• Section 链接 → 导入该分区下所有 Frame<br>• Page 链接 → 导入该页面下所有顶层 Frame
           <div style="margin-top:8px;">
             <img src="figma-structure.png" alt="Figma 层级结构：Page → Section → Frame" loading="lazy" style="width:100%;max-width:480px;border-radius:6px;border:1px solid #e8e5df;display:block;" />
           </div>
@@ -1892,7 +1892,7 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
   const group = document.createElement('div');
   group.id = 'canvas-' + name;
   group.style.cssText = 'position:absolute; left:60px; top:60px; width:860px;';
-  group.innerHTML = '<div class="canvas-label" style="color:#37352F; margin-bottom:10px;">\u25cf ' + name + ' &nbsp;\xb7&nbsp; ' + maxLen + '个页面</div>';
+  group.innerHTML = '<div class="canvas-label" style="color:#8B8B95; margin-bottom:10px;">\u25cf ' + name + ' &nbsp;\xb7&nbsp; ' + maxLen + '个页面</div>';
 
   for (let i = 0; i < maxLen; i++) {
     const pageWrapper = document.createElement('div');
@@ -1900,8 +1900,8 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
 
     pageWrapper.innerHTML = '<div style="color:#9A9A90;font-size:11px;margin-bottom:8px;">页面 ' + (i + 1) + '</div>' +
       '<div class="pair-col-header" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">' +
-      '<span style="font-size:13px;font-weight:600;color:#6B6B64;letter-spacing:.05em;">设计稿</span>' +
-      '<span style="font-size:13px;font-weight:600;color:#6B6B64;letter-spacing:.05em;">开发稿</span></div>';
+      '<span style="font-size:13px;font-weight:600;color:#8B8B95;letter-spacing:.05em;">设计稿</span>' +
+      '<span style="font-size:13px;font-weight:600;color:#8B8B95;letter-spacing:.05em;">开发稿</span></div>';
 
     const pair = document.createElement('div');
     pair.className = 'canvas-pair';
@@ -1962,8 +1962,8 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
     <div class="text-center" style="padding-top:40vh;" id="analyzeHint">
       <div class="text-xs text-gray-400 mb-3">AI 正在分析中，请稍候...</div>
       <div class="analyze-panel-progress" style="margin:0 24px;">
-        <div style="height:3px;background:rgba(209,209,201,.3);border-radius:4px;overflow:hidden;">
-          <div id="panelProgressFill" style="height:100%;width:0%;background:#37352F;border-radius:4px;transition:width .4s ease;"></div>
+        <div style="height:3px;background:rgba(0,0,0,.06);border-radius:4px;overflow:hidden;">
+          <div id="panelProgressFill" style="height:100%;width:0%;background:#10B981;border-radius:4px;transition:width .4s ease;"></div>
         </div>
         <div class="text-[10px] text-gray-400 mt-1.5 text-center" id="panelProgressText">准备分析...</div>
       </div>
@@ -2176,7 +2176,7 @@ function addProjectCard(name, reviewStatus, createdAt, prepend = true, skipUpdat
 
   // 随机图标颜色
   const colors = [
-    { bg: 'rgba(35,131,226,.08)', stroke: 'var(--color-terracotta)' },
+    { bg: 'rgba(16,185,129,.08)', stroke: 'var(--color-terracotta)' },
     { bg: 'rgba(107,75,175,.1)', stroke: '#6B4BAF' },
     { bg: 'rgba(34,163,74,.1)', stroke: '#22A34A' },
     { bg: 'rgba(59,130,246,.1)', stroke: '#3B82F6' },
@@ -2193,23 +2193,23 @@ function addProjectCard(name, reviewStatus, createdAt, prepend = true, skipUpdat
             <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="${c.stroke}" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2" stroke-linecap="round"/></svg>
           </div>
           <div>
-            <div class="flex items-center gap-0.5">
+            <div class="flex items-center gap-1.5">
               <h3 class="project-name-label font-semibold text-gray-900 text-sm">${escHtml(name)}</h3>
               <button class="rename-btn" onclick="event.stopPropagation();startRenameProject(this.previousElementSibling)" title="重命名"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l2.651 2.651M19.513 7.138L8.404 18.247l-3.535.707.707-3.535L16.686 4.31a2 2 0 012.827 2.828z"/></svg></button>
-              ${reviewStatus === '待设计验收' ? '<span class="status-badge badge-review">待设计验收</span>' : reviewStatus === '已通过' ? '<span class="status-badge badge-passed">已通过</span>' : '<span class="status-badge badge-active">进行中</span>'}
+              ${reviewStatus === '待设计验收' ? '<span class="status-badge badge-review"><span class="status-dot-static" style="background:#A78BFA;width:5px;height:5px;"></span>待验收</span>' : reviewStatus === '已通过' ? '<span class="status-badge badge-passed"><span class="status-dot-static" style="background:#34D399;width:5px;height:5px;"></span>已通过</span>' : '<span class="status-badge badge-active"><span class="status-dot" style="width:5px;height:5px;"></span>进行中</span>'}
             </div>
-            <p class="text-xs text-gray-400 mt-0.5">${timeAgo(createdAt)}</p>
+            <p class="text-xs text-gray-400 mt-0.5" style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.03em;">${timeAgo(createdAt)}</p>
           </div>
         </div>
         <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
       </div>
-      <div class="flex items-center flex-nowrap whitespace-nowrap gap-4 mt-4 pt-3 border-t border-gray-50 -mx-1 px-1">
-        <div class="text-xs text-gray-500">共 <span class="font-semibold text-gray-800 issue-count-num">0</span> 个问题</div>
+      <div class="flex items-center flex-nowrap whitespace-nowrap gap-4 mt-4 pt-3 -mx-1 px-1" style="border-top:1px solid rgba(0,0,0,0.06);">
+        <div class="text-xs text-gray-500" style="font-family:var(--font-mono);font-size:10px;">ISSUES <span class="font-semibold text-gray-800 issue-count-num">0</span></div>
         <div class="ml-auto flex -space-x-1.5">
-          <div class="w-6 h-6 rounded-full bg-blue-200 border-2 border-white flex items-center justify-center text-xs font-semibold text-blue-700">设</div>
-          <div class="w-6 h-6 rounded-full bg-green-200 border-2 border-white flex items-center justify-center text-xs font-semibold text-green-700">开</div>
+          <div class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold" style="background:rgba(16,185,129,0.15);color:var(--color-accent-bright);border:1.5px solid rgba(255,255,255,0.9);">设</div>
+          <div class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold" style="background:rgba(139,92,246,0.15);color:#A78BFA;border:1.5px solid rgba(255,255,255,0.9);">开</div>
         </div>
-        <div class="text-xs text-gray-400">更新于${timeAgo(createdAt)}</div>
+        <div class="text-xs text-gray-400" style="font-family:var(--font-mono);font-size:10px;">UPD ${timeAgo(createdAt)}</div>
       </div>
     </div>`;
 
@@ -2233,7 +2233,7 @@ function updateProjectCount() {
   const countEl = document.getElementById('projectCountLabel');
   if (countEl && grid) {
     const count = grid.querySelectorAll('.project-card').length;
-    countEl.textContent = '已有项目 · ' + count + ' 个';
+    countEl.textContent = 'WORKSPACE · 已有项目 · ' + count + ' 个';
   }
 }
 
@@ -2309,6 +2309,34 @@ async function autoAnalyzeAll() {
   for (const btn of btns) {
     await analyzePair(btn);
   }
+}
+
+async function reAnalyzeAll() {
+  const reBtn = document.getElementById('reAnalyzeBtn');
+  if (reBtn.disabled) return;
+  reBtn.disabled = true;
+  reBtn.style.opacity = '0.5';
+  reBtn.style.cursor = 'wait';
+
+  // 重置所有已分析的 pair-analyze-btn
+  document.querySelectorAll('.pair-analyze-btn.analyzed, .pair-analyze-btn.analyzing').forEach(btn => {
+    btn.classList.remove('analyzed', 'analyzing');
+    btn.innerHTML = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>';
+  });
+
+  // 清理旧的扫描动画和标注
+  document.querySelectorAll('.scan-overlay, .analyzing-mask').forEach(el => el.remove());
+
+  // 重新逐对分析
+  const btns = document.querySelectorAll('.pair-analyze-btn.visible');
+  for (const btn of btns) {
+    await analyzePair(btn);
+  }
+
+  reBtn.disabled = false;
+  reBtn.style.opacity = '1';
+  reBtn.style.cursor = 'pointer';
+  showToast('全部重新分析完成');
 }
 
 function showToast(msg) {
@@ -2443,13 +2471,13 @@ function showOnboardingGuide() {
     guide.innerHTML = `
       <div style="position:absolute;inset:0;background:rgba(0,0,0,.4);pointer-events:auto;" onclick="dismissGuide()"></div>
       <div style="position:fixed;bottom:${bottom}px;left:${left}px;pointer-events:auto;width:280px;">
-        <div style="background:#fff;border-radius:12px;padding:16px 20px;box-shadow:0 8px 32px rgba(0,0,0,.18);position:relative;">
-          <div style="font-size:14px;font-weight:600;color:#1F1F1F;margin-bottom:6px;">如何新增走查问题</div>
-          <div style="font-size:12px;color:#6B6B64;line-height:1.6;">
-            「<span style="color:#37352F;font-weight:600;">线框</span>」模式下，在设计稿或者开发稿上拖拽画框，即可手动添加走查问题。
+        <div style="background:#FFFFFF;border:1px solid rgba(0,0,0,0.08);border-radius:12px;padding:16px 20px;box-shadow:0 8px 32px rgba(0,0,0,.12);position:relative;">
+          <div style="font-size:14px;font-weight:600;color:#1A1A1A;margin-bottom:6px;">如何新增走查问题</div>
+          <div style="font-size:12px;color:#6B6B73;line-height:1.6;">
+            「<span style="color:#1A1A1A;font-weight:600;">线框</span>」模式下，在设计稿或者开发稿上拖拽画框，即可手动添加走查问题。
           </div>
-          <button onclick="dismissGuide()" style="margin-top:12px;width:100%;padding:7px 0;background:#37352F;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:500;cursor:pointer;">我知道了</button>
-          <div style="position:absolute;bottom:-8px;left:${rect.left + rect.width / 2 - left - 8}px;width:16px;height:16px;background:#fff;transform:rotate(45deg);box-shadow:4px 4px 8px rgba(0,0,0,.06);"></div>
+          <button onclick="dismissGuide()" style="margin-top:12px;width:100%;padding:7px 0;background:#10B981;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;">我知道了</button>
+          <div style="position:absolute;bottom:-8px;left:${rect.left + rect.width / 2 - left - 8}px;width:16px;height:16px;background:#17171A;transform:rotate(45deg);box-shadow:4px 4px 8px rgba(0,0,0,.3);"></div>
         </div>
       </div>
     `;
@@ -2467,10 +2495,16 @@ function dismissGuide() {
 function setRole(role) {
   currentRole = role;
   const isDesigner = role === 'designer';
-  document.getElementById('roleDesigner').className = 'text-xs px-2.5 py-1 rounded-md font-medium transition-all whitespace-nowrap ' + (isDesigner ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500');
-  document.getElementById('roleDev').className = 'text-xs px-2.5 py-1 rounded-md font-medium transition-all whitespace-nowrap ' + (!isDesigner ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500');
-  // 头像显示邮箱首字母，颜色跟随角色
-  document.getElementById('userAvatar').className = 'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer hover:ring-2 transition-all ' + (isDesigner ? 'bg-blue-100 text-blue-700 hover:ring-blue-300' : 'bg-green-100 text-green-700 hover:ring-green-300');
+  const dBtn = document.getElementById('roleDesigner');
+  const vBtn = document.getElementById('roleDev');
+  dBtn.className = 'text-xs px-2.5 py-1 rounded-md font-medium transition-all whitespace-nowrap';
+  vBtn.className = 'text-xs px-2.5 py-1 rounded-md font-medium transition-all whitespace-nowrap';
+  if (isDesigner) { dBtn.style.cssText = 'font-family:var(--font-mono);font-size:10px;letter-spacing:0.05em;background:var(--color-accent);color:#fff;'; vBtn.style.cssText = 'font-family:var(--font-mono);font-size:10px;letter-spacing:0.05em;color:#8B8B95;background:transparent;'; }
+  else { vBtn.style.cssText = 'font-family:var(--font-mono);font-size:10px;letter-spacing:0.05em;background:var(--color-accent);color:#fff;'; dBtn.style.cssText = 'font-family:var(--font-mono);font-size:10px;letter-spacing:0.05em;color:#8B8B95;background:transparent;'; }
+  // 头像
+  const avatar = document.getElementById('userAvatar');
+  avatar.className = 'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer hover:ring-2 transition-all';
+  avatar.style.cssText = isDesigner ? 'background:rgba(16,185,129,0.15);color:var(--color-accent-bright);' : 'background:rgba(139,92,246,0.15);color:#A78BFA;';
   // 角色标签不再显示文字（切换按钮已指示当前角色）
   renderStats();
   // update workbench role if visible
@@ -2631,7 +2665,7 @@ async function loadProject(projectId) {
       const group = document.createElement('div');
       group.id = 'canvas-' + projectName;
       group.style.cssText = 'position:absolute; left:60px; top:60px; width:860px;';
-      group.innerHTML = '<div class="canvas-label" style="color:#37352F; margin-bottom:10px;">\u25cf ' + escHtml(projectName) + ' &nbsp;\xb7&nbsp; ' + maxLen + '个页面</div>';
+      group.innerHTML = '<div class="canvas-label" style="color:#8B8B95; margin-bottom:10px;">\u25cf ' + escHtml(projectName) + ' &nbsp;\xb7&nbsp; ' + maxLen + '个页面</div>';
 
       for (let i = 0; i < maxLen; i++) {
         const dUrl = designImgs[i]?.public_url || '';
@@ -3013,7 +3047,7 @@ function showProximityAnalyzeIcon(cx, cy) {
     document.body.appendChild(icon);
     proximityIcon = icon;
     // Highlight the target image
-    closest.style.outline = '2px solid #37352F';
+    closest.style.outline = '2px solid #10B981';
     closest.style.outlineOffset = '2px';
   } else {
     clearProximityAnalyzeIcon();
@@ -3471,7 +3505,7 @@ async function analyzePair(btnEl) {
       if (hint) hint.remove();
     }
 
-    const annoColor = '#37352F';
+    const annoColor = '#10B981';
     const priorityClass = { '高': 'priority-high', '中': 'priority-mid', '低': 'priority-low' };
 
     // 计算当前 pair 在 canvas 中的页码索引
@@ -3695,7 +3729,7 @@ async function analyzePair(btnEl) {
     if (analyzeHint) {
       analyzeHint.innerHTML = `
         <div class="text-xs text-gray-400 mb-4">分析失败，请重试</div>
-        <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#37352F;color:#fff;cursor:pointer;">
+        <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#10B981;color:#fff;cursor:pointer;">
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>
           重新分析
         </button>
@@ -3707,7 +3741,7 @@ async function analyzePair(btnEl) {
         issueList.innerHTML = `
           <div class="text-center" style="padding-top:40vh;" id="analyzeHint">
             <div class="text-xs text-gray-400 mb-4">分析失败，请重试</div>
-            <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#37352F;color:#fff;cursor:pointer;">
+            <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#10B981;color:#fff;cursor:pointer;">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>
               重新分析
             </button>
@@ -4150,8 +4184,8 @@ function setAnnoMode(mode) {
         </select>
       </div>
       <div style="display:flex;gap:8px;margin-top:12px;">
-        <button id="drawIssueCancel" style="flex:1;padding:6px;font-size:12px;border:1px solid #E8E5DE;border-radius:8px;background:#FFFFFF;cursor:pointer;color:#6B6B64;">取消</button>
-        <button id="drawIssueConfirm" style="flex:1;padding:6px;font-size:12px;border:none;border-radius:8px;background:#37352F;color:#fff;cursor:pointer;font-weight:500;">新增</button>
+        <button id="drawIssueCancel" style="flex:1;padding:6px;font-size:12px;border:1px solid rgba(0,0,0,0.10);border-radius:8px;background:rgba(0,0,0,0.03);cursor:pointer;color:#3F3F46;">取消</button>
+        <button id="drawIssueConfirm" style="flex:1;padding:6px;font-size:12px;border:none;border-radius:8px;background:#10B981;color:#fff;cursor:pointer;font-weight:500;">新增</button>
       </div>
     `;
 
@@ -4354,4 +4388,29 @@ function setAnnoMode(mode) {
     staggerOverlappingLabels(wrap.closest('.canvas-pair'));
     sortAnnoZIndex();
   }
+})();
+
+// ── 首页迷雾探照灯 ──────────────────────────────────────────
+(function initFogSpotlight() {
+  var rafId = null;
+  var R = 160;
+
+  document.addEventListener('mousemove', function(e) {
+    var pageHome = document.getElementById('page-home');
+    var clearLayer = document.getElementById('fogClearLayer');
+    if (!pageHome || !clearLayer) return;
+    // 只在首页 active 时生效
+    if (!pageHome.classList.contains('active')) return;
+
+    if (rafId) return;
+    rafId = requestAnimationFrame(function() {
+      rafId = null;
+      var rect = pageHome.getBoundingClientRect();
+      var x = e.clientX - rect.left;
+      var y = e.clientY - rect.top;
+      var m = 'radial-gradient(circle ' + R + 'px at ' + x + 'px ' + y + 'px, black 0%, rgba(0,0,0,0.35) 55%, transparent 100%)';
+      clearLayer.style.webkitMaskImage = m;
+      clearLayer.style.maskImage = m;
+    });
+  });
 })();

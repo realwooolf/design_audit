@@ -4,11 +4,13 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="description" content="设计验收小工具 — 设计走查与还原度检测工具，帮助设计师和开发者高效协作" />
-<meta name="theme-color" content="#FFFFFF" />
+<meta name="theme-color" content="#EEEEF0" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✓</text></svg>" />
 <title>设计验收小工具 — 走查工具</title>
-<!-- 字体：Geist Sans -->
+<!-- 字体：Geist Sans + JetBrains Mono -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 @font-face { font-family: 'Geist'; src: url('https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/Geist-Regular.woff2') format('woff2'); font-weight: 400; font-display: swap; }
 @font-face { font-family: 'Geist'; src: url('https://cdn.jsdelivr.net/npm/geist@1.3.1/dist/fonts/geist-sans/Geist-Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
@@ -23,33 +25,34 @@ tailwind.config = {
     extend: {
       colors: {
         gray: {
-          50: '#FFFFFF',
-          100: '#F7F7F5',
-          200: '#E8E5DE',
-          300: '#D3D1CB',
-          400: '#B4B4B0',
-          500: '#787774',
-          600: '#5A5A57',
-          700: '#37352F',
-          800: '#2C2A25',
-          900: '#1B1B18',
+          50: '#FAFAFA',
+          100: '#F4F4F5',
+          200: '#E4E4E7',
+          300: '#D4D4D8',
+          400: '#A1A1AA',
+          500: '#71717A',
+          600: '#52525B',
+          700: '#3F3F46',
+          800: '#27272A',
+          900: '#18181B',
         },
         blue: {
-          50: 'rgba(35,131,226,.04)',
-          100: 'rgba(35,131,226,.08)',
-          200: 'rgba(35,131,226,.15)',
-          300: 'rgba(35,131,226,.25)',
-          400: '#4A9BE8',
-          500: '#2383E2',
-          600: '#1B6EC2',
-          700: '#155BA0',
-          800: '#104880',
-          900: '#0B3560',
+          50: 'rgba(16,185,129,0.04)',
+          100: 'rgba(16,185,129,0.08)',
+          200: 'rgba(16,185,129,0.12)',
+          300: 'rgba(16,185,129,0.20)',
+          400: '#34D399',
+          500: '#10B981',
+          600: '#059669',
+          700: '#047857',
+          800: '#065F46',
+          900: '#064E3B',
         },
       },
       fontFamily: {
         sans: ['"Geist"', '-apple-system', 'BlinkMacSystemFont', '"PingFang SC"', '"Microsoft YaHei"', '"Helvetica Neue"', 'sans-serif'],
-        mono: ['ui-monospace', 'SFMono-Regular', 'monospace'],
+        display: ['"Geist"', '-apple-system', 'sans-serif'],
+        mono: ['"JetBrains Mono"', '"SF Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       }
     }
   }
@@ -57,15 +60,15 @@ tailwind.config = {
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="auth.js"></script>
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=20">
 </head>
-<body class="bg-gray-50 h-screen overflow-hidden">
+<body class="h-screen overflow-hidden" style="background:#EEEEF0;">
 
 <!-- 移动端提示遮罩 -->
-<div id="mobileBlock" style="display:none;position:fixed;inset:0;z-index:9999;background:var(--color-paper);flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;">
+<div id="mobileBlock" style="display:none;position:fixed;inset:0;z-index:9999;background:#EEEEF0;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;">
   <div style="font-size:48px;margin-bottom:20px;">🖥️</div>
-  <div style="font-size:18px;font-weight:600;color:var(--color-ink);margin-bottom:8px;">请在电脑端打开</div>
-  <div style="font-size:14px;color:#6B6B64;line-height:1.6;max-width:280px;">设计验收小工具 走查工具需要较大屏幕操作，<br>请使用电脑浏览器访问以获得最佳体验。</div>
+  <div style="font-size:18px;font-weight:600;color:#1A1A1A;margin-bottom:8px;">请在电脑端打开</div>
+  <div style="font-size:14px;color:#6B6B73;line-height:1.6;max-width:280px;">设计验收小工具 走查工具需要较大屏幕操作，<br>请使用电脑浏览器访问以获得最佳体验。</div>
 </div>
 <script>
 (function(){
@@ -76,14 +79,18 @@ tailwind.config = {
 })();
 </script>
 
-<!-- Background (Notion-style clean white) -->
-
 <!-- ============================================================ -->
 <!-- PAGE 0: 登录 / 注册 -->
 <!-- ============================================================ -->
-<div id="page-auth" class="page active h-screen w-screen flex items-center justify-center">
-  <div class="glass-card p-8" style="width:380px;max-width:90vw;">
-    <h2 class="text-xl font-bold text-center text-gray-900 mb-6">设计验收小工具</h2>
+<div id="page-auth" class="page active h-screen w-screen flex items-center justify-center" style="background:#EEEEF0;">
+  <div class="glass-card p-8 nodum-enter" style="width:400px;max-width:90vw;">
+    <div class="text-center mb-8">
+      <div class="flex items-center justify-center gap-2 mb-3">
+        <span style="font-family:'Geist',sans-serif;font-size:14px;font-weight:600;color:#1A1A1A;letter-spacing:-0.01em;">DesignCheck</span>
+      </div>
+      <h2 class="text-2xl font-bold" style="color:#1A1A1A;">设计验收小工具</h2>
+      <p class="text-xs mt-2" style="font-family:var(--font-mono);letter-spacing:0.05em;color:#9B9BA3;">DESIGN REVIEW SYSTEM v1.0</p>
+    </div>
 
     <div id="authError" class="hidden text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2 mb-4"></div>
 
@@ -173,8 +180,8 @@ tailwind.config = {
                 <div id="designTabUpload" class="upload-zone upload-zone-new flex-1" onclick="document.getElementById('uploadDesign').click()" style="border-top-left-radius:0;border-top-right-radius:0;">
                   <input type="file" id="uploadDesign" class="hidden" multiple accept="image/*" onchange="handleUploadPreview(this, 'previewDesign')" />
                   <div class="upload-placeholder" id="placeholderDesign">
-                    <div class="upload-icon-wrap" style="background:var(--color-bg2)">
-                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                    <div class="upload-icon-wrap" style="background:rgba(198,93,59,.08)">
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--color-terracotta)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
                     </div>
                     <div class="text-sm font-semibold text-gray-800 mb-0.5">上传设计稿</div>
                     <div class="text-xs text-gray-400">截图 / 图片</div>
@@ -185,18 +192,18 @@ tailwind.config = {
                 <div id="designTabFigma" class="hidden upload-zone upload-zone-new flex-1" style="border-top-left-radius:0;border-top-right-radius:0;cursor:default;overflow-y:auto;display:none;padding:16px 20px;text-align:left;align-items:stretch;" onclick="">
                   <div class="flex items-center justify-between mb-1.5">
                     <span class="text-xs text-gray-500">导入设计稿</span>
-                    <span class="text-[10px] text-gray-400 hover:text-blue-500 cursor-pointer" onclick="showFigmaImportHelp()">如何导入？</span>
+                    <span class="text-[10px] text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer" onclick="showFigmaImportHelp()">如何导入？</span>
                   </div>
                   <input id="figmaLinkInput" type="text"
                     placeholder="粘贴 Figma 链接（Frame / Section / Page 均可）"
-                    class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white/60 mb-3 focus:outline-none focus:border-blue-500 focus:shadow-[0_0_0_2px_rgba(35,131,226,.1)] transition-all" />
+                    class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white mb-3 focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all" />
                   <div class="flex items-center justify-between mb-1.5">
                     <span class="text-xs text-gray-500">Personal Access Token</span>
-                    <span class="text-[10px] text-gray-400 hover:text-blue-500 cursor-pointer" onclick="showFigmaTokenHelp()">如何获取？</span>
+                    <span class="text-[10px] text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer" onclick="showFigmaTokenHelp()">如何获取？</span>
                   </div>
                   <input id="figmaTokenInput" type="password"
                     placeholder="figd_..."
-                    class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white/60 mb-1.5 focus:outline-none focus:border-blue-500 focus:shadow-[0_0_0_2px_rgba(35,131,226,.1)] transition-all" />
+                    class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white mb-1.5 focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all" />
                   <label class="flex items-center gap-1.5 mb-3 cursor-pointer select-none">
                     <input type="checkbox" id="figmaRememberToken" checked class="accent-[var(--color-terracotta)]" />
                     <span class="text-xs text-gray-400">记住 Token</span>
@@ -229,7 +236,7 @@ tailwind.config = {
             </div>
             <!-- 底栏：输入框 + 按钮 -->
             <div class="flex items-center gap-4">
-              <div class="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 bg-white/50 transition-all focus-within:border-blue-400 focus-within:shadow-[0_0_0_2px_rgba(35,131,226,.1)]">
+              <div class="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 bg-white transition-all focus-within:border-blue-400 focus-within:shadow-[0_0_0_3px_rgba(198,93,59,.1)]">
 
                 <input id="taskNameCold" type="text" placeholder="输入走查任务名称"
                   class="flex-1 text-sm text-gray-700 placeholder-gray-400 bg-transparent border-none outline-none" />
@@ -295,23 +302,25 @@ tailwind.config = {
   </div>
 </div>
 
+
+
 <!-- ============================================================ -->
 <!-- PAGE 3: 专题详情页 (skeleton, filled in part 3) -->
 <!-- ============================================================ -->
 <div id="page-workbench" class="page h-screen w-screen overflow-hidden">
 
   <!-- Center: canvas area -->
-  <div class="flex-1 flex flex-col overflow-hidden bg-gray-100">
+  <div class="flex-1 flex flex-col overflow-hidden" style="background:#FAFAFA;">
     <!-- Breadcrumb + toolbar -->
-    <div class="bg-gray-50 border-b border-gray-200 px-5 py-4 flex items-center gap-3 flex-shrink-0">
-      <button onclick="showPage('home')" class="text-xs text-gray-400 hover:text-gray-700 transition-colors">项目</button>
-      <span class="text-gray-300 text-xs">/</span>
-      <span class="text-xs font-medium text-gray-900" id="breadcrumbProject">美团外卖 App 9.0 改版</span>
+    <div class="px-5 py-3 flex items-center gap-3 flex-shrink-0" style="background:#FFFFFF;border-bottom:1px solid rgba(0,0,0,0.06);">
+      <div class="status-dot" style="width:5px;height:5px;"></div>
+      <button onclick="showPage('home')" class="text-gray-500 hover:text-gray-700 transition-colors" style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.05em;text-transform:uppercase;">PROJECTS</button>
+      <span style="color:rgba(0,0,0,0.2);font-size:10px;">/</span>
+      <span class="font-medium text-gray-900" id="breadcrumbProject" style="font-size:12px;">美团外卖 App 9.0 改版</span>
       <div class="ml-auto flex items-center gap-2">
-        <!-- Overlay toggle (disabled) -->
-        <button onclick="alert('修改记录（演示预留）')" class="hidden text-xs text-gray-500 hover:text-gray-700 border border-gray-200 px-2.5 py-1 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-1">
-          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          修改记录
+        <button onclick="reAnalyzeAll()" id="reAnalyzeBtn" class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all" style="font-family:var(--font-mono);font-size:11px;color:#6B6B73;background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.08);" onmouseover="this.style.borderColor='rgba(16,185,129,0.3)';this.style.color='var(--color-accent-bright)'" onmouseout="this.style.borderColor='rgba(0,0,0,0.08)';this.style.color='#6B6B73'">
+          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          重新分析
         </button>
       </div>
     </div>
@@ -330,13 +339,13 @@ tailwind.config = {
 
           <!-- Page: 首页 Banner -->
           <div style="margin-bottom:24px;">
-            <div style="color:#9A9A90;font-size:11px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+            <div style="color:#8B8B95;font-size:11px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
               首页 Banner
-              <span style="background:#FFF8E1;color:#8B6914;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;">3 问题</span>
+              <span style="background:rgba(251,191,36,0.12);color:#FBBF24;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;">3 问题</span>
             </div>
             <div class="pair-col-header" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">
-              <span style="font-size:10px;font-weight:600;color:#9A9A90;letter-spacing:.05em;">设计稿</span>
-              <span style="font-size:10px;font-weight:600;color:#9A9A90;letter-spacing:.05em;">开发稿</span>
+              <span style="font-size:10px;font-weight:600;color:#8B8B95;letter-spacing:.05em;">设计稿</span>
+              <span style="font-size:10px;font-weight:600;color:#8B8B95;letter-spacing:.05em;">开发稿</span>
             </div>
             <div class="canvas-pair" style="position:relative;">
               <div class="canvas-img-wrap" data-type="design">
@@ -374,13 +383,13 @@ tailwind.config = {
 
           <!-- Page: 商家卡片列表 -->
           <div>
-            <div style="color:#9A9A90;font-size:11px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+            <div style="color:#8B8B95;font-size:11px;margin-bottom:8px;display:flex;align-items:center;gap:8px;">
               商家卡片列表
-              <span style="background:#fef3c7;color:#8B6914;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;">2 问题</span>
+              <span style="background:rgba(251,191,36,0.12);color:#FBBF24;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:600;">2 问题</span>
             </div>
             <div class="pair-col-header" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">
-              <span style="font-size:10px;font-weight:600;color:#9A9A90;letter-spacing:.05em;">设计稿</span>
-              <span style="font-size:10px;font-weight:600;color:#9A9A90;letter-spacing:.05em;">开发稿</span>
+              <span style="font-size:10px;font-weight:600;color:#8B8B95;letter-spacing:.05em;">设计稿</span>
+              <span style="font-size:10px;font-weight:600;color:#8B8B95;letter-spacing:.05em;">开发稿</span>
             </div>
             <div class="canvas-pair" style="position:relative;">
               <div class="canvas-img-wrap" data-type="design">
@@ -430,8 +439,8 @@ tailwind.config = {
         <div id="canvas-商家详情" style="position:absolute; left:60px; top:660px; width:860px;">
           <div class="canvas-label" style="color:#a855f7; margin-bottom:10px;">● 商家详情 &nbsp;·&nbsp; 1个页面 &nbsp;·&nbsp; 2个问题</div>
           <div class="pair-col-header" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">
-            <span style="font-size:10px;font-weight:600;color:#9A9A90;letter-spacing:.05em;">设计稿</span>
-            <span style="font-size:10px;font-weight:600;color:#9A9A90;letter-spacing:.05em;">开发稿</span>
+            <span style="font-size:10px;font-weight:600;color:#8B8B95;letter-spacing:.05em;">设计稿</span>
+            <span style="font-size:10px;font-weight:600;color:#8B8B95;letter-spacing:.05em;">开发稿</span>
           </div>
           <div class="canvas-pair" style="position:relative;">
             <div class="canvas-img-wrap" data-type="design">
@@ -461,8 +470,8 @@ tailwind.config = {
         <div id="canvas-个人中心" style="position:absolute; left:60px; top:960px; width:860px;">
           <div class="canvas-label" style="color:#22c55e; margin-bottom:10px;">● 个人中心 &nbsp;·&nbsp; 1个页面 &nbsp;·&nbsp; 1个问题</div>
           <div class="pair-col-header" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px;">
-            <span style="font-size:10px;font-weight:600;color:#9A9A90;letter-spacing:.05em;">设计稿</span>
-            <span style="font-size:10px;font-weight:600;color:#9A9A90;letter-spacing:.05em;">开发稿</span>
+            <span style="font-size:10px;font-weight:600;color:#8B8B95;letter-spacing:.05em;">设计稿</span>
+            <span style="font-size:10px;font-weight:600;color:#8B8B95;letter-spacing:.05em;">开发稿</span>
           </div>
           <div class="canvas-pair" style="position:relative;">
             <div class="canvas-img-wrap" data-type="design">
@@ -508,7 +517,7 @@ tailwind.config = {
         <button class="zoom-btn" onclick="canvasZoom(-0.1)" title="缩小">−</button>
         <span class="zoom-pct" id="zoomPct" onclick="canvasFit()" title="点击适应屏幕">100%</span>
         <button class="zoom-btn" onclick="canvasZoom(0.1)" title="放大">+</button>
-        <div style="width:1px;height:14px;background:rgba(255,255,255,.15);margin:0 2px;"></div>
+        <div style="width:1px;height:14px;background:rgba(0,0,0,.10);margin:0 2px;"></div>
         <button class="zoom-btn" onclick="canvasFit()" title="适应屏幕" style="font-size:10px;width:auto;padding:0 6px;">适应</button>
       </div>
 
@@ -525,7 +534,7 @@ tailwind.config = {
       </div>
 
       <!-- Hint -->
-      <div id="canvasHint" style="position:absolute;bottom:16px;right:16px;color:rgba(0,0,0,.18);font-size:11px;pointer-events:none;">
+      <div id="canvasHint" style="position:absolute;bottom:16px;right:16px;color:rgba(0,0,0,.15);font-size:11px;pointer-events:none;">
         滚轮缩放 · 拖拽平移
       </div>
 
@@ -567,7 +576,7 @@ tailwind.config = {
         </div>
       </div>
       <!-- 左侧开口分割线 -->
-      <div style="margin-left:16px; border-bottom:1px solid rgba(209,209,201,.3);"></div>
+      <div style="margin-left:16px; border-bottom:1px solid rgba(0,0,0,.06);"></div>
     </div>
 
     <!-- 开发侧：提交走查申请 -->

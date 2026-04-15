@@ -6,75 +6,77 @@
 <title>问题集中展示 — Demo</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif; background: #FFFFFF; min-height: 100vh; padding: 48px 20px; color: #37352F; }
+  body { font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif; background: #08080C; min-height: 100vh; padding: 48px 20px; color: #E8E8ED; }
   .page-header { text-align: center; margin-bottom: 40px; }
-  .page-header h1 { font-size: 20px; font-weight: 700; color: #1F2937; margin-bottom: 6px; }
-  .page-header p { font-size: 13px; color: #9A9A90; }
+  .page-header h1 { font-size: 20px; font-weight: 700; color: #E8E8ED; margin-bottom: 6px; }
+  .page-header p { font-size: 13px; color: #8B8B95; }
   .cards { display: flex; flex-direction: column; align-items: center; gap: 24px; }
 
   /* 卡片 */
-  .issue-card { background: #fff; border-radius: 8px; padding: 18px; box-shadow: none; border: 1px solid #E8E5DE; width: 420px; max-width: 95vw; }
+  .issue-card { background: rgba(255,255,255,0.03); border-radius: 10px; padding: 18px; border: 1px solid rgba(255,255,255,0.06); backdrop-filter: blur(12px); width: 420px; max-width: 95vw; }
   .badge { display: inline-block; font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
-  .badge-high { background: #FEF2F2; color: #DC2626; }
-  .badge-mid { background: #FFF8E1; color: #B45309; }
-  .badge-low { background: #F0FDF4; color: #16A34A; }
-  .tag-type { font-size: 10px; color: #4A4A44; background: #F7F7F5; padding: 2px 6px; border-radius: 6px; font-weight: 500; }
-  .card-title { font-size: 14px; font-weight: 600; color: #1F2937; margin: 6px 0 2px; }
-  .card-date { font-size: 10px; color: #D1D5DB; margin-bottom: 10px; }
+  .badge-high { background: rgba(239,68,68,0.12); color: #F87171; }
+  .badge-mid { background: rgba(251,191,36,0.12); color: #FBBF24; }
+  .badge-low { background: rgba(34,197,94,0.12); color: #34D399; }
+  .tag-type { font-size: 10px; color: #8B8B95; background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 6px; font-weight: 500; }
+  .card-title { font-size: 14px; font-weight: 600; color: #E8E8ED; margin: 6px 0 2px; }
+  .card-date { font-size: 10px; color: #55555E; margin-bottom: 10px; }
 
   /* 设计预期 vs 实际 */
   .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
   .compare-left, .compare-right { padding: 8px; border-radius: 8px; }
-  .compare-left { background: #fff; border: 1px solid #E8E5DE; }
-  .compare-right { background: #FEF2F2; border: 1px solid #FECACA; }
-  .compare-label { font-size: 10px; color: #6B7280; margin-bottom: 4px; }
-  .compare-value { font-family: 'SF Mono', Monaco, monospace; font-size: 11px; color: #1F2937; }
-  .compare-right .compare-value { color: #DC2626; }
-  .compare-mismatch { font-size: 10px; color: #DC2626; font-weight: 500; float: right; }
+  .compare-left { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+  .compare-right { background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.15); }
+  .compare-label { font-size: 10px; color: #55555E; margin-bottom: 4px; }
+  .compare-value { font-family: 'SF Mono', Monaco, monospace; font-size: 11px; color: #E8E8ED; }
+  .compare-right .compare-value { color: #F87171; }
+  .compare-mismatch { font-size: 10px; color: #F87171; font-weight: 500; float: right; }
 
   /* 元信息 */
-  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 0; border-top: 1px solid #E8E5DE; border-bottom: 1px solid #E8E5DE; margin-bottom: 10px; }
-  .meta-label { font-size: 10px; color: #9CA3AF; margin-bottom: 4px; }
-  .meta-value { font-size: 11px; color: #374151; display: flex; align-items: center; gap: 4px; }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 10px; }
+  .meta-label { font-size: 10px; color: #55555E; margin-bottom: 4px; }
+  .meta-value { font-size: 11px; color: #CDCDCF; display: flex; align-items: center; gap: 4px; }
   .avatar-sm { width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; flex-shrink: 0; }
   .status-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 
   /* 状态流转时间线 */
   .status-flow { display: flex; align-items: center; gap: 0; margin-bottom: 12px; flex-wrap: wrap; }
   .flow-node { font-size: 9px; padding: 2px 8px; border-radius: 10px; font-weight: 500; white-space: nowrap; }
-  .flow-arrow { font-size: 10px; color: #D1D5DB; margin: 0 3px; }
-  .flow-gray { background: #F3F4F6; color: #6B7280; }
-  .flow-orange { background: #FFF7ED; color: #EA580C; }
-  .flow-purple { background: #FAF5FF; color: #9333EA; }
-  .flow-red { background: #FEF2F2; color: #DC2626; }
-  .flow-green { background: #F0FDF4; color: #16A34A; }
+  .flow-arrow { font-size: 10px; color: #55555E; margin: 0 3px; }
+  .flow-gray { background: rgba(255,255,255,0.06); color: #8B8B95; }
+  .flow-orange { background: rgba(249,115,22,0.10); color: #FB923C; }
+  .flow-purple { background: rgba(139,92,246,0.10); color: #A78BFA; }
+  .flow-red { background: rgba(239,68,68,0.10); color: #F87171; }
+  .flow-green { background: rgba(34,197,94,0.10); color: #34D399; }
 
   /* 对话区 */
-  .conversation-label { font-size: 12px; font-weight: 500; color: #9CA3AF; padding-bottom: 6px; }
+  .conversation-label { font-size: 12px; font-weight: 500; color: #55555E; padding-bottom: 6px; }
   .conversation { margin-top: 4px; }
   .msg { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; }
   .msg + .msg { margin-top: 6px; }
   .msg-avatar { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
   .msg-body { flex: 1; min-width: 0; }
   .msg-header { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; flex-wrap: wrap; }
-  .msg-name { font-size: 11px; font-weight: 600; color: #374151; }
+  .msg-name { font-size: 11px; font-weight: 600; color: #CDCDCF; }
   .msg-role { font-size: 9px; padding: 1px 5px; border-radius: 4px; font-weight: 500; }
-  .msg-role-designer { background: #EFF6FF; color: #3B82F6; }
-  .msg-role-dev { background: #ECFDF5; color: #059669; }
-  .msg-time { font-size: 10px; color: #D1D5DB; }
-  .msg-text { font-size: 11px; color: #4B5563; background: #F9FAFB; border-radius: 8px; padding: 6px 10px; line-height: 1.6; }
-  .msg-text.pass { background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; }
-  .msg-text.reject { background: #FEF2F2; border: 1px solid #FECACA; color: #991B1B; }
-  .msg-text code { font-family: 'SF Mono', Monaco, monospace; font-size: 10px; background: #fff; border: 1px solid #E5E7EB; padding: 1px 4px; border-radius: 3px; }
+  .msg-role-designer { background: rgba(14,165,233,0.10); color: #38BDF8; }
+  .msg-role-dev { background: rgba(34,197,94,0.12); color: #34D399; }
+  .msg-time { font-size: 10px; color: #55555E; }
+  .msg-text { font-size: 11px; color: #A0A0A8; background: rgba(255,255,255,0.04); border-radius: 8px; padding: 6px 10px; line-height: 1.6; }
+  .msg-text.pass { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.2); color: #34D399; }
+  .msg-text.reject { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: #F87171; }
+  .msg-text code { font-family: 'SF Mono', Monaco, monospace; font-size: 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); padding: 1px 4px; border-radius: 3px; color: #E8E8ED; }
 
   /* 系统消息 */
   .msg-system { text-align: center; padding: 6px 0; }
-  .msg-system span { font-size: 9px; color: #787774; background: #F7F7F5; padding: 2px 10px; border-radius: 10px; }
+  .msg-system span { font-size: 9px; color: #8B8B95; background: rgba(255,255,255,0.06); padding: 2px 10px; border-radius: 10px; }
 
   /* 输入框 */
   .comment-input { display: flex; gap: 6px; margin-top: 12px; align-items: center; }
-  .comment-input input { flex: 1; font-size: 11px; border: 1px solid #E5E7EB; border-radius: 8px; padding: 6px 10px; outline: none; background: #fff; }
-  .comment-input button { font-size: 11px; padding: 5px 12px; border: none; border-radius: 8px; background: #37352F; color: #fff; cursor: pointer; font-weight: 500; white-space: nowrap; }
+  .comment-input input { flex: 1; font-size: 11px; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 6px 10px; outline: none; background: rgba(255,255,255,0.04); color: #E8E8ED; }
+  .comment-input input::placeholder { color: rgba(255,255,255,0.25); }
+  .comment-input input:focus { border-color: rgba(34,197,94,0.4); }
+  .comment-input button { font-size: 11px; padding: 5px 12px; border: none; border-radius: 6px; background: #22C55E; color: #fff; cursor: pointer; font-weight: 500; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -115,7 +117,7 @@
     <div>
       <div class="meta-label">负责人</div>
       <div class="meta-value">
-        <div class="avatar-sm" style="background:#DCFCE7; color:#16A34A;">张</div>
+        <div class="avatar-sm" style="background:rgba(34,197,94,0.14); color:#34D399;">张</div>
         张伟 (前端)
       </div>
     </div>
@@ -123,7 +125,7 @@
       <div class="meta-label">状态</div>
       <div class="meta-value">
         <div class="status-dot" style="background:#22C55E;"></div>
-        <span style="color:#16A34A;">已关闭</span>
+        <span style="color:#34D399;">已关闭</span>
       </div>
     </div>
   </div>
@@ -139,7 +141,7 @@
   <div class="conversation">
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">雨</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">小雨</span>
@@ -151,7 +153,7 @@
     </div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+      <div class="msg-avatar" style="background:rgba(34,197,94,0.14); color:#34D399;">张</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">张伟</span>
@@ -163,7 +165,7 @@
     </div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+      <div class="msg-avatar" style="background:rgba(34,197,94,0.14); color:#34D399;">张</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">张伟</span>
@@ -177,7 +179,7 @@
     <div class="msg-system"><span>张伟 将状态改为「待复核」</span></div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">雨</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">小雨</span>
@@ -224,7 +226,7 @@
     <div>
       <div class="meta-label">负责人</div>
       <div class="meta-value">
-        <div class="avatar-sm" style="background:#DBEAFE; color:#2563EB;">李</div>
+        <div class="avatar-sm" style="background:rgba(14,165,233,0.14); color:#38BDF8;">李</div>
         李明 (前端)
       </div>
     </div>
@@ -232,7 +234,7 @@
       <div class="meta-label">状态</div>
       <div class="meta-value">
         <div class="status-dot" style="background:#22C55E;"></div>
-        <span style="color:#16A34A;">已关闭</span>
+        <span style="color:#34D399;">已关闭</span>
       </div>
     </div>
   </div>
@@ -251,7 +253,7 @@
   <div class="conversation">
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">雨</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">小雨</span>
@@ -263,7 +265,7 @@
     </div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">李</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">李</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">李明</span>
@@ -275,7 +277,7 @@
     </div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">雨</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">小雨</span>
@@ -287,7 +289,7 @@
     </div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">李</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">李</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">李明</span>
@@ -301,7 +303,7 @@
     <div class="msg-system"><span>李明 将状态改为「待复核」</span></div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">雨</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">小雨</span>
@@ -315,7 +317,7 @@
     <div class="msg-system"><span>小雨 将状态改为「已退回」</span></div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">李</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">李</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">李明</span>
@@ -329,7 +331,7 @@
     <div class="msg-system"><span>李明 将状态改为「待复核」</span></div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">雨</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">小雨</span>
@@ -376,7 +378,7 @@
     <div>
       <div class="meta-label">负责人</div>
       <div class="meta-value">
-        <div class="avatar-sm" style="background:#DCFCE7; color:#16A34A;">张</div>
+        <div class="avatar-sm" style="background:rgba(34,197,94,0.14); color:#34D399;">张</div>
         张伟 (前端)
       </div>
     </div>
@@ -384,7 +386,7 @@
       <div class="meta-label">状态</div>
       <div class="meta-value">
         <div class="status-dot" style="background:#22C55E;"></div>
-        <span style="color:#16A34A;">已关闭（遗留优化）</span>
+        <span style="color:#34D399;">已关闭（遗留优化）</span>
       </div>
     </div>
   </div>
@@ -400,7 +402,7 @@
   <div class="conversation">
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">雨</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">小雨</span>
@@ -412,7 +414,7 @@
     </div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+      <div class="msg-avatar" style="background:rgba(34,197,94,0.14); color:#34D399;">张</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">张伟</span>
@@ -424,7 +426,7 @@
     </div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">雨</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">小雨</span>
@@ -436,7 +438,7 @@
     </div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+      <div class="msg-avatar" style="background:rgba(34,197,94,0.14); color:#34D399;">张</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">张伟</span>
@@ -449,13 +451,13 @@
 
     <!-- 截图占位 -->
     <div style="display:flex; gap:6px; padding:4px 0 4px 32px;">
-      <div style="width:90px; height:48px; background:#F3F4F6; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:9px; color:#9CA3AF; border:1px solid #E5E7EB;">400 Regular</div>
-      <div style="width:90px; height:48px; background:#F3F4F6; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:9px; color:#9CA3AF; border:1px solid #E5E7EB;">600 System</div>
-      <div style="width:90px; height:48px; background:#F3F4F6; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:9px; color:#9CA3AF; border:1px solid #E5E7EB;">700 Bold</div>
+      <div style="width:90px; height:48px; background:rgba(255,255,255,0.04); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:9px; color:#8B8B95; border:1px solid rgba(255,255,255,0.08);">400 Regular</div>
+      <div style="width:90px; height:48px; background:rgba(255,255,255,0.04); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:9px; color:#8B8B95; border:1px solid rgba(255,255,255,0.08);">600 System</div>
+      <div style="width:90px; height:48px; background:rgba(255,255,255,0.04); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:9px; color:#8B8B95; border:1px solid rgba(255,255,255,0.08);">700 Bold</div>
     </div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">雨</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">小雨</span>
@@ -467,7 +469,7 @@
     </div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DCFCE7; color:#16A34A;">张</div>
+      <div class="msg-avatar" style="background:rgba(34,197,94,0.14); color:#34D399;">张</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">张伟</span>
@@ -481,7 +483,7 @@
     <div class="msg-system"><span>张伟 将状态改为「待复核」</span></div>
 
     <div class="msg">
-      <div class="msg-avatar" style="background:#DBEAFE; color:#2563EB;">雨</div>
+      <div class="msg-avatar" style="background:rgba(14,165,233,0.14); color:#38BDF8;">雨</div>
       <div class="msg-body">
         <div class="msg-header">
           <span class="msg-name">小雨</span>
