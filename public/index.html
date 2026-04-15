@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="description" content="设计验收小工具 — 设计走查与还原度检测工具，帮助设计师和开发者高效协作" />
-<meta name="theme-color" content="#EEEEF0" />
+<meta name="theme-color" content="#F0F3F7" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✓</text></svg>" />
 <title>设计验收小工具 — 走查工具</title>
 <!-- 字体：Geist Sans + JetBrains Mono -->
@@ -37,14 +37,14 @@ tailwind.config = {
           900: '#18181B',
         },
         blue: {
-          50: 'rgba(16,185,129,0.04)',
-          100: 'rgba(16,185,129,0.08)',
-          200: 'rgba(16,185,129,0.12)',
-          300: 'rgba(16,185,129,0.20)',
+          50: 'rgba(30,41,59,0.04)',
+          100: 'rgba(30,41,59,0.08)',
+          200: 'rgba(30,41,59,0.12)',
+          300: 'rgba(30,41,59,0.20)',
           400: '#34D399',
-          500: '#10B981',
-          600: '#059669',
-          700: '#047857',
+          500: '#1E293B',
+          600: '#0F172A',
+          700: '#1E293B',
           800: '#065F46',
           900: '#064E3B',
         },
@@ -62,10 +62,16 @@ tailwind.config = {
 <script src="auth.js"></script>
 <link rel="stylesheet" href="style.css?v=20">
 </head>
-<body class="h-screen overflow-hidden" style="background:#EEEEF0;">
+<body class="h-screen overflow-hidden" style="background:linear-gradient(160deg, #E4E9F0 0%, #E9EDF3 40%, #EDF0F5 70%, #F0F3F7 100%);">
+<!-- Ambient orbs -->
+<div style="position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;">
+  <div style="position:absolute;top:-15%;right:-10%;width:700px;height:700px;background:radial-gradient(circle,rgba(147,165,207,0.12) 0%,transparent 70%);filter:blur(90px);"></div>
+  <div style="position:absolute;bottom:-10%;left:-5%;width:600px;height:600px;background:radial-gradient(circle,rgba(134,194,186,0.09) 0%,transparent 70%);filter:blur(90px);"></div>
+  <div style="position:absolute;top:40%;left:50%;width:500px;height:500px;background:radial-gradient(circle,rgba(148,163,184,0.07) 0%,transparent 70%);filter:blur(90px);transform:translateX(-50%);"></div>
+</div>
 
 <!-- 移动端提示遮罩 -->
-<div id="mobileBlock" style="display:none;position:fixed;inset:0;z-index:9999;background:#EEEEF0;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;">
+<div id="mobileBlock" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(160deg,#E4E9F0,#F0F3F7);flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;">
   <div style="font-size:48px;margin-bottom:20px;">🖥️</div>
   <div style="font-size:18px;font-weight:600;color:#1A1A1A;margin-bottom:8px;">请在电脑端打开</div>
   <div style="font-size:14px;color:#6B6B73;line-height:1.6;max-width:280px;">设计验收小工具 走查工具需要较大屏幕操作，<br>请使用电脑浏览器访问以获得最佳体验。</div>
@@ -82,7 +88,7 @@ tailwind.config = {
 <!-- ============================================================ -->
 <!-- PAGE 0: 登录 / 注册 -->
 <!-- ============================================================ -->
-<div id="page-auth" class="page active h-screen w-screen flex items-center justify-center" style="background:#EEEEF0;">
+<div id="page-auth" class="page active h-screen w-screen flex items-center justify-center" style="background:transparent;position:relative;z-index:1;">
   <div class="glass-card p-8 nodum-enter" style="width:400px;max-width:90vw;">
     <div class="text-center mb-8">
       <div class="flex items-center justify-center gap-2 mb-3">
@@ -104,7 +110,7 @@ tailwind.config = {
     </div>
 
     <label class="flex items-center gap-1.5 mb-4 cursor-pointer select-none">
-      <input type="checkbox" id="authRememberMe" checked class="accent-[var(--color-terracotta)]" />
+      <input type="checkbox" id="authRememberMe" checked class="accent-[var(--color-accent)]" />
       <span class="text-xs text-gray-400">记住邮箱</span>
     </label>
 
@@ -153,7 +159,7 @@ tailwind.config = {
       <div class="max-w-4xl mx-auto px-8 flex flex-col">
 
         <!-- 固定顶部上传区（不随内容增减改变位置） -->
-        <div class="flex flex-col" style="padding-top:calc(50vh - 220px);">
+        <div class="flex flex-col" style="padding-top:calc(50vh - 240px);">
 
           <!-- 大标题区域（居中） -->
           <div class="text-center mb-10 stagger-1">
@@ -161,59 +167,53 @@ tailwind.config = {
           </div>
 
           <!-- 主任务卡片 -->
-          <div class="glass-card stagger-2 p-6">
+          <div class="glass-card stagger-2 p-7">
             <!-- 大上传区 -->
-            <div class="flex items-stretch gap-4 mb-5">
-              <div class="flex-1 flex flex-col">
-                <!-- Tab 切换头 -->
-                <div class="flex gap-0 mb-0" style="margin-bottom:-1px;position:relative;z-index:1;">
-                  <button id="designTabUploadBtn" class="design-tab design-tab-active" onclick="switchDesignTab('upload')">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
-                    上传图片
-                  </button>
-                  <button id="designTabFigmaBtn" class="design-tab" onclick="switchDesignTab('figma')">
-                    <svg class="w-3 h-3" viewBox="0 0 38 57" fill="currentColor"><path d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z"/><path d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 0 1-19 0z"/><path d="M19 0v19h9.5a9.5 9.5 0 0 0 0-19H19z"/><path d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z"/><path d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z"/></svg>
-                    Figma 导入
-                  </button>
-                </div>
-                <!-- Tab 内容：上传图片 -->
-                <div id="designTabUpload" class="upload-zone upload-zone-new flex-1" onclick="document.getElementById('uploadDesign').click()" style="border-top-left-radius:0;border-top-right-radius:0;">
+            <div class="flex items-stretch gap-4 mb-4">
+              <!-- 左侧：设计稿 -->
+              <div class="flex-1">
+                <!-- Tab: 上传图片 -->
+                <div id="designTabUpload" class="upload-zone upload-zone-new" style="height:100%;position:relative;" onclick="document.getElementById('uploadDesign').click()">
                   <input type="file" id="uploadDesign" class="hidden" multiple accept="image/*" onchange="handleUploadPreview(this, 'previewDesign')" />
                   <div class="upload-placeholder" id="placeholderDesign">
-                    <div class="upload-icon-wrap" style="background:rgba(198,93,59,.08)">
+                    <div class="upload-icon-wrap" style="background:rgba(198,93,59,.06)">
                       <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="var(--color-terracotta)" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
                     </div>
                     <div class="text-sm font-semibold text-gray-800 mb-0.5">上传设计稿</div>
-                    <div class="text-xs text-gray-400">截图 / 图片</div>
+                    <div class="text-xs text-gray-400">图片</div>
+                  </div>
+                  <div class="figma-switch-link" onclick="event.stopPropagation();switchDesignTab('figma')" style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);">
+                    从 Figma 导入
                   </div>
                   <div class="upload-preview hidden" id="previewDesign"></div>
                 </div>
-                <!-- Tab 内容：Figma 导入 -->
-                <div id="designTabFigma" class="hidden upload-zone upload-zone-new flex-1" style="border-top-left-radius:0;border-top-right-radius:0;cursor:default;overflow-y:auto;display:none;padding:16px 20px;text-align:left;align-items:stretch;" onclick="">
+                <!-- Tab: Figma 导入 -->
+                <div id="designTabFigma" class="hidden upload-zone upload-zone-new" style="cursor:default;overflow-y:auto;display:none;padding:16px 20px;text-align:left;align-items:stretch;justify-content:flex-start;height:100%;" onclick="">
+                  <div class="figma-switch-link mb-2" style="align-self:flex-start;" onclick="switchDesignTab('upload')">← 上传图片</div>
                   <div class="flex items-center justify-between mb-1.5">
                     <span class="text-xs text-gray-500">导入设计稿</span>
-                    <span class="text-[10px] text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer" onclick="showFigmaImportHelp()">如何导入？</span>
+                    <span class="text-[10px] text-gray-400 hover:text-[var(--color-accent)] cursor-pointer" onclick="showFigmaImportHelp()">如何导入？</span>
                   </div>
                   <input id="figmaLinkInput" type="text"
                     placeholder="粘贴 Figma 链接（Frame / Section / Page 均可）"
-                    class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white mb-3 focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all" />
+                    class="w-full text-xs rounded-lg px-3 py-2 mb-3 focus:outline-none transition-all" style="border:1px solid rgba(0,0,0,0.05);background:rgba(255,255,255,0.5);" />
                   <div class="flex items-center justify-between mb-1.5">
                     <span class="text-xs text-gray-500">Personal Access Token</span>
-                    <span class="text-[10px] text-gray-400 hover:text-[var(--color-terracotta)] cursor-pointer" onclick="showFigmaTokenHelp()">如何获取？</span>
+                    <span class="text-[10px] text-gray-400 hover:text-[var(--color-accent)] cursor-pointer" onclick="showFigmaTokenHelp()">如何获取？</span>
                   </div>
                   <input id="figmaTokenInput" type="password"
                     placeholder="figd_..."
-                    class="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white mb-1.5 focus:outline-none focus:border-[var(--color-terracotta)] focus:shadow-[0_0_0_3px_rgba(198,93,59,.08)] transition-all" />
+                    class="w-full text-xs rounded-lg px-3 py-2 mb-1.5 focus:outline-none transition-all" style="border:1px solid rgba(0,0,0,0.05);background:rgba(255,255,255,0.5);" />
                   <label class="flex items-center gap-1.5 mb-3 cursor-pointer select-none">
-                    <input type="checkbox" id="figmaRememberToken" checked class="accent-[var(--color-terracotta)]" />
+                    <input type="checkbox" id="figmaRememberToken" checked class="accent-[var(--color-accent)]" />
                     <span class="text-xs text-gray-400">记住 Token</span>
                   </label>
                   <!-- Frame 勾选列表（Section/Page 时显示） -->
-                  <div id="figmaFrameList" class="hidden mb-3 max-h-28 overflow-y-auto border border-gray-100 rounded-lg p-2 bg-gray-50/50">
+                  <div id="figmaFrameList" class="hidden mb-3 max-h-28 overflow-y-auto rounded-lg p-2" style="border:1px solid rgba(0,0,0,0.04);background:rgba(255,255,255,0.35);">
                     <div class="flex items-center justify-between mb-2">
                       <span class="text-xs font-medium text-gray-600" id="figmaFrameListTitle">选择要导入的 Frame</span>
                       <label class="flex items-center gap-1 cursor-pointer select-none">
-                        <input type="checkbox" id="figmaSelectAll" checked onchange="toggleFigmaSelectAll(this.checked)" class="accent-[var(--color-terracotta)]" />
+                        <input type="checkbox" id="figmaSelectAll" checked onchange="toggleFigmaSelectAll(this.checked)" class="accent-[var(--color-accent)]" />
                         <span class="text-xs text-gray-400">全选</span>
                       </label>
                     </div>
@@ -222,24 +222,26 @@ tailwind.config = {
                   <div id="figmaImportStatus" class="hidden mt-2 text-xs text-center"></div>
                 </div>
               </div>
-              <div class="flex-1 upload-zone upload-zone-new" style="border-color:rgba(154,154,144,.25)" onclick="document.getElementById('uploadDev').click()">
-                <input type="file" id="uploadDev" class="hidden" multiple accept="image/*" onchange="handleUploadPreview(this, 'previewDev')" />
-                <div class="upload-placeholder" id="placeholderDev">
-                  <div class="upload-icon-wrap" style="background:rgba(107,107,100,.06)">
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#6B6B64" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+              <!-- 右侧：开发稿列 -->
+              <div class="flex-1">
+                <div class="upload-zone upload-zone-new" style="height:100%;" onclick="document.getElementById('uploadDev').click()">
+                  <input type="file" id="uploadDev" class="hidden" multiple accept="image/*" onchange="handleUploadPreview(this, 'previewDev')" />
+                  <div class="upload-placeholder" id="placeholderDev">
+                    <div class="upload-icon-wrap" style="background:rgba(107,107,100,.05)">
+                      <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#6B6B64" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                    </div>
+                    <div class="text-sm font-semibold text-gray-800 mb-0.5">上传开发稿</div>
+                    <div class="text-xs text-gray-400">图片</div>
                   </div>
-                  <div class="text-sm font-semibold text-gray-800 mb-0.5">上传开发稿</div>
-                  <div class="text-xs text-gray-400">截图 / 图片</div>
+                  <div class="upload-preview hidden" id="previewDev"></div>
                 </div>
-                <div class="upload-preview hidden" id="previewDev"></div>
               </div>
             </div>
             <!-- 底栏：输入框 + 按钮 -->
             <div class="flex items-center gap-4">
-              <div class="flex-1 flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2 bg-white transition-all focus-within:border-blue-400 focus-within:shadow-[0_0_0_3px_rgba(198,93,59,.1)]">
-
+              <div class="flex-1 flex items-center gap-2 rounded-2xl px-3 py-2.5 transition-all" style="border:1px solid rgba(0,0,0,0.05);background:rgba(255,255,255,0.55);">
                 <input id="taskNameCold" type="text" placeholder="输入走查任务名称"
-                  class="flex-1 text-sm text-gray-700 placeholder-gray-400 bg-transparent border-none outline-none" />
+                  class="flex-1 text-sm text-gray-700 placeholder-gray-400 bg-transparent border-none outline-none" style="min-height:20px;" />
               </div>
               <div class="relative flex-shrink-0 group" id="btnStartColdWrap">
                 <button id="btnStartCold" data-mode="cold" onclick="startCompare(this)" class="cta-btn flex items-center gap-1.5 text-sm px-5 py-2" disabled>
@@ -310,15 +312,16 @@ tailwind.config = {
 <div id="page-workbench" class="page h-screen w-screen overflow-hidden">
 
   <!-- Center: canvas area -->
-  <div class="flex-1 flex flex-col overflow-hidden" style="background:#FAFAFA;">
+  <div class="flex-1 flex flex-col overflow-hidden" style="background:linear-gradient(160deg, #E4E9F0 0%, #E9EDF3 40%, #EDF0F5 70%, #F0F3F7 100%);">
+
     <!-- Breadcrumb + toolbar -->
-    <div class="px-5 py-3 flex items-center gap-3 flex-shrink-0" style="background:#FFFFFF;border-bottom:1px solid rgba(0,0,0,0.06);">
+    <div class="px-5 py-3 flex items-center gap-3 flex-shrink-0" style="background:rgba(255,255,255,0.35);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid rgba(0,0,0,0.03);">
       <div class="status-dot" style="width:5px;height:5px;"></div>
-      <button onclick="showPage('home')" class="text-gray-500 hover:text-gray-700 transition-colors" style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.05em;text-transform:uppercase;">PROJECTS</button>
+      <button onclick="showPage('home')" class="text-gray-500 hover:text-gray-700 transition-colors" style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.05em;text-transform:uppercase;">项目</button>
       <span style="color:rgba(0,0,0,0.2);font-size:10px;">/</span>
       <span class="font-medium text-gray-900" id="breadcrumbProject" style="font-size:12px;">美团外卖 App 9.0 改版</span>
       <div class="ml-auto flex items-center gap-2">
-        <button onclick="reAnalyzeAll()" id="reAnalyzeBtn" class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all" style="font-family:var(--font-mono);font-size:11px;color:#6B6B73;background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.08);" onmouseover="this.style.borderColor='rgba(16,185,129,0.3)';this.style.color='var(--color-accent-bright)'" onmouseout="this.style.borderColor='rgba(0,0,0,0.08)';this.style.color='#6B6B73'">
+        <button onclick="reAnalyzeAll()" id="reAnalyzeBtn" class="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-all" style="font-family:var(--font-mono);font-size:11px;color:#6B6B73;background:rgba(0,0,0,0.03);border:1px solid rgba(0,0,0,0.08);" onmouseover="this.style.borderColor='rgba(30,41,59,0.3)';this.style.color='var(--color-accent-bright)'" onmouseout="this.style.borderColor='rgba(0,0,0,0.08)';this.style.color='#6B6B73'">
           <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
           重新分析
         </button>
@@ -1303,7 +1306,7 @@ tailwind.config = {
 </div>
 
 
-<script src="app.min.js?v=12"></script>
+<script src="app.js?v=12"></script>
 
 <!-- 确认弹窗 -->
 <div id="confirmDialog" class="confirm-mask" onclick="closeConfirm()">

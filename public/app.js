@@ -104,7 +104,7 @@ function selectIssue(id) {
   matchingAnnos.forEach(a => {
     a.classList.remove('dimmed');
     a.classList.add('anno-active');
-    a.style.boxShadow = '0 0 0 3px rgba(16,185,129,.2)';
+    a.style.boxShadow = '0 0 0 3px rgba(30,41,59,.2)';
   });
   // 高亮模式下重绘 canvas，突出选中区域
   if (currentAnnoMode === 'spotlight') refreshSpotlightCanvas();
@@ -330,7 +330,7 @@ async function submitVerify() {
 
   const slot = getOrCreateVerifySlot(card);
   slot.className = 'rounded-lg px-3 py-2 text-xs text-gray-500 mb-2 flex items-center gap-2 bg-gray-100';
-  slot.innerHTML = `<div style="width:12px;height:12px;border:2px solid #10B981;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div> AI 校验中…`;
+  slot.innerHTML = `<div style="width:12px;height:12px;border:2px solid #1E293B;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div> AI 校验中…`;
 
   // 查找设计稿图片
   const designInfo = findDesignImageForIssue(id);
@@ -600,7 +600,7 @@ const FEISHU_USERS = [
   { name: '刘洋', dept: '前端工程部', role: '前端工程师', initials: '刘', bg: '#7c3aed', tag: '内部' },
   { name: '赵婷', dept: 'UX 设计部', role: 'UX 设计师', initials: '赵', bg: '#db2777', tag: '外部' },
   { name: '孙浩', dept: '后端工程部', role: '后端工程师', initials: '孙', bg: '#d97706', tag: '内部' },
-  { name: '吴静', dept: '测试部', role: 'QA 工程师', initials: '吴', bg: '#059669', tag: '外部' },
+  { name: '吴静', dept: '测试部', role: 'QA 工程师', initials: '吴', bg: '#0F172A', tag: '外部' },
   { name: '周磊', dept: '移动开发部', role: 'iOS 工程师', initials: '周', bg: '#dc2626', tag: '内部' },
 ];
 let feishuSearchTimer = null;
@@ -1100,6 +1100,13 @@ document.querySelectorAll('.dev-only').forEach(el => el.style.display = 'none');
     const w = world();
     if (!w) return;
     w.style.transform = `translate(${S.tx}px,${S.ty}px) scale(${S.scale})`;
+    // 网格跟随画布移动 + 缩放
+    const bg = document.getElementById('canvasBg');
+    if (bg) {
+      const gridSize = 32 * S.scale;
+      bg.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+      bg.style.backgroundPosition = `${S.tx}px ${S.ty}px`;
+    }
     const lbl = zoomLabel();
     if (lbl) lbl.textContent = Math.round(S.scale * 100) + '%';
   }
@@ -1358,8 +1365,8 @@ const uploadedFiles = {};
 
 function handleUploadPreview(input, previewId) {
   const preview = document.getElementById(previewId);
-  const placeholder = preview.previousElementSibling;
   const zone = input.closest('.upload-zone');
+  const placeholder = zone.querySelector('.upload-placeholder');
   if (!input.files.length) return;
 
   // 累加文件（支持多次添加）
@@ -1369,7 +1376,10 @@ function handleUploadPreview(input, previewId) {
   });
 
   renderUploadPreview(previewId, input.id);
-  placeholder.classList.add('hidden');
+  if (placeholder) placeholder.style.display = 'none';
+  const figmaLink = zone.querySelector('.figma-switch-link');
+  if (figmaLink) figmaLink.style.display = 'none';
+  preview.style.display = '';
   preview.classList.remove('hidden');
   zone.classList.add('has-files');
   updateStartButtons();
@@ -1379,10 +1389,14 @@ function renderUploadPreview(previewId, inputId) {
   const preview = document.getElementById(previewId);
   const files = uploadedFiles[previewId] || [];
   const showMax = 3;
-  let html = '';
+  const label = previewId.toLowerCase().includes('design') ? '设计稿' : '开发稿';
+  let html = `<div class="upload-label">${label}</div>`;
 
   files.slice(0, showMax).forEach((f, i) => {
+    html += `<div class="thumb-wrap" style="position:relative;display:inline-block;">`;
     html += `<img src="${f.url}" class="thumb" alt="${escHtml(f.name)}" onclick="event.stopPropagation();openImageViewer('${previewId}')" />`;
+    html += `<div class="thumb-delete" onclick="event.stopPropagation();removeSingleFile('${previewId}','${inputId}',${i})" title="删除">×</div>`;
+    html += `</div>`;
   });
 
   if (files.length > showMax) {
@@ -1392,7 +1406,7 @@ function renderUploadPreview(previewId, inputId) {
   html += `<div class="upload-info">`;
   html += `<span class="text-xs text-gray-500">${files.length} 张图片</span>`;
   html += `<span class="add-more" onclick="event.stopPropagation();document.getElementById('${inputId}').click()">+ 继续添加</span>`;
-  html += `<span class="text-xs text-gray-400 cursor-pointer hover:text-red-500" onclick="event.stopPropagation();clearUpload('${inputId}','${previewId}')">清除</span>`;
+  html += `<span class="text-xs text-gray-400 cursor-pointer hover:text-red-500" onclick="event.stopPropagation();clearUpload('${inputId}','${previewId}')">清空</span>`;
   html += `</div>`;
   preview.innerHTML = html;
 }
@@ -1400,16 +1414,34 @@ function renderUploadPreview(previewId, inputId) {
 function clearUpload(inputId, previewId) {
   const input = document.getElementById(inputId);
   const preview = document.getElementById(previewId);
-  const placeholder = preview.previousElementSibling;
   const zone = input.closest('.upload-zone');
+  const placeholder = zone.querySelector('.upload-placeholder');
   input.value = '';
   // 释放 URL
   (uploadedFiles[previewId] || []).forEach(f => URL.revokeObjectURL(f.url));
   delete uploadedFiles[previewId];
   preview.innerHTML = '';
+  preview.style.display = 'none';
   preview.classList.add('hidden');
+  if (placeholder) placeholder.style.display = '';
   placeholder.classList.remove('hidden');
+  const figmaLink = zone.querySelector('.figma-switch-link');
+  if (figmaLink) figmaLink.style.display = '';
   zone.classList.remove('has-files');
+  updateStartButtons();
+}
+
+function removeSingleFile(previewId, inputId, index) {
+  const files = uploadedFiles[previewId] || [];
+  if (index >= 0 && index < files.length) {
+    URL.revokeObjectURL(files[index].url);
+    files.splice(index, 1);
+  }
+  if (files.length === 0) {
+    clearUpload(inputId, previewId);
+  } else {
+    renderUploadPreview(previewId, inputId);
+  }
   updateStartButtons();
 }
 
@@ -1509,14 +1541,14 @@ function switchDesignTab(tab) {
     uploadTab.style.display = '';
     uploadTab.classList.remove('hidden');
     figmaTab.style.display = 'none';
-    uploadBtn.classList.add('design-tab-active');
-    figmaBtn.classList.remove('design-tab-active');
+    uploadBtn.classList.add('seg-active');
+    figmaBtn.classList.remove('seg-active');
   } else {
     uploadTab.style.display = 'none';
     figmaTab.style.display = '';
     figmaTab.classList.remove('hidden');
-    figmaBtn.classList.add('design-tab-active');
-    uploadBtn.classList.remove('design-tab-active');
+    figmaBtn.classList.add('seg-active');
+    uploadBtn.classList.remove('seg-active');
   }
 }
 
@@ -1963,7 +1995,7 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
       <div class="text-xs text-gray-400 mb-3">AI 正在分析中，请稍候...</div>
       <div class="analyze-panel-progress" style="margin:0 24px;">
         <div style="height:3px;background:rgba(0,0,0,.06);border-radius:4px;overflow:hidden;">
-          <div id="panelProgressFill" style="height:100%;width:0%;background:#10B981;border-radius:4px;transition:width .4s ease;"></div>
+          <div id="panelProgressFill" style="height:100%;width:0%;background:#1E293B;border-radius:4px;transition:width .4s ease;"></div>
         </div>
         <div class="text-[10px] text-gray-400 mt-1.5 text-center" id="panelProgressText">准备分析...</div>
       </div>
@@ -2176,7 +2208,7 @@ function addProjectCard(name, reviewStatus, createdAt, prepend = true, skipUpdat
 
   // 随机图标颜色
   const colors = [
-    { bg: 'rgba(16,185,129,.08)', stroke: 'var(--color-terracotta)' },
+    { bg: 'rgba(30,41,59,.08)', stroke: 'var(--color-terracotta)' },
     { bg: 'rgba(107,75,175,.1)', stroke: '#6B4BAF' },
     { bg: 'rgba(34,163,74,.1)', stroke: '#22A34A' },
     { bg: 'rgba(59,130,246,.1)', stroke: '#3B82F6' },
@@ -2195,21 +2227,34 @@ function addProjectCard(name, reviewStatus, createdAt, prepend = true, skipUpdat
           <div>
             <div class="flex items-center gap-1.5">
               <h3 class="project-name-label font-semibold text-gray-900 text-sm">${escHtml(name)}</h3>
-              <button class="rename-btn" onclick="event.stopPropagation();startRenameProject(this.previousElementSibling)" title="重命名"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l2.651 2.651M19.513 7.138L8.404 18.247l-3.535.707.707-3.535L16.686 4.31a2 2 0 012.827 2.828z"/></svg></button>
               ${reviewStatus === '待设计验收' ? '<span class="status-badge badge-review"><span class="status-dot-static" style="background:#A78BFA;width:5px;height:5px;"></span>待验收</span>' : reviewStatus === '已通过' ? '<span class="status-badge badge-passed"><span class="status-dot-static" style="background:#34D399;width:5px;height:5px;"></span>已通过</span>' : '<span class="status-badge badge-active"><span class="status-dot" style="width:5px;height:5px;"></span>进行中</span>'}
             </div>
             <p class="text-xs text-gray-400 mt-0.5" style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.03em;">${timeAgo(createdAt)}</p>
           </div>
         </div>
-        <svg class="w-4 h-4 text-gray-400 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-      </div>
-      <div class="flex items-center flex-nowrap whitespace-nowrap gap-4 mt-4 pt-3 -mx-1 px-1" style="border-top:1px solid rgba(0,0,0,0.06);">
-        <div class="text-xs text-gray-500" style="font-family:var(--font-mono);font-size:10px;">ISSUES <span class="font-semibold text-gray-800 issue-count-num">0</span></div>
-        <div class="ml-auto flex -space-x-1.5">
-          <div class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold" style="background:rgba(16,185,129,0.15);color:var(--color-accent-bright);border:1.5px solid rgba(255,255,255,0.9);">设</div>
-          <div class="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-semibold" style="background:rgba(139,92,246,0.15);color:#A78BFA;border:1.5px solid rgba(255,255,255,0.9);">开</div>
+        <div class="project-more-wrap" style="position:relative;">
+          <button class="project-more-btn" onclick="event.stopPropagation();toggleProjectMenu(this)">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg>
+          </button>
+          <div class="project-menu dropdown">
+            <div class="dropdown-item flex items-center gap-2" onclick="event.stopPropagation();projectMenuAction(this,'rename')">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l2.651 2.651M19.513 7.138L8.404 18.247l-3.535.707.707-3.535L16.686 4.31a2 2 0 012.827 2.828z"/></svg>
+              重命名
+            </div>
+            <div class="dropdown-item flex items-center gap-2" style="color:#EF4444;" onclick="event.stopPropagation();projectMenuAction(this,'delete')">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              删除
+            </div>
+          </div>
         </div>
-        <div class="text-xs text-gray-400" style="font-family:var(--font-mono);font-size:10px;">UPD ${timeAgo(createdAt)}</div>
+      </div>
+      <div class="flex items-center flex-nowrap whitespace-nowrap gap-4 mt-4 pt-3 -mx-1 px-1" style="border-top:1px solid rgba(0,0,0,0.04);">
+        <div class="text-xs text-gray-500" style="font-family:var(--font-mono);font-size:10px;">问题 <span class="font-semibold text-gray-800 issue-count-num">0</span></div>
+        <div class="ml-auto flex -space-x-1.5">
+          <div class="w-6 h-6 rounded-full flex items-center justify-center" style="font-size:10px;font-weight:600;background:rgba(30,41,59,0.1);color:rgba(30,41,59,0.55);border:1.5px solid rgba(30,41,59,0.08);backdrop-filter:blur(4px);">设</div>
+          <div class="w-6 h-6 rounded-full flex items-center justify-center" style="font-size:10px;font-weight:600;background:rgba(139,92,246,0.1);color:rgba(139,92,246,0.6);border:1.5px solid rgba(139,92,246,0.1);backdrop-filter:blur(4px);">开</div>
+        </div>
+        <div class="text-xs text-gray-400" style="font-family:var(--font-mono);font-size:10px;">更新于 ${timeAgo(createdAt)}</div>
       </div>
     </div>`;
 
@@ -2233,7 +2278,7 @@ function updateProjectCount() {
   const countEl = document.getElementById('projectCountLabel');
   if (countEl && grid) {
     const count = grid.querySelectorAll('.project-card').length;
-    countEl.textContent = 'WORKSPACE · 已有项目 · ' + count + ' 个';
+    countEl.textContent = '已有项目 · ' + count + ' 个';
   }
 }
 
@@ -2303,6 +2348,49 @@ function startRenameProject(label) {
   input.focus();
   input.select();
 }
+
+function toggleProjectMenu(btn) {
+  const menu = btn.nextElementSibling;
+  // 先关闭所有其他菜单
+  document.querySelectorAll('.project-menu.open').forEach(m => { if (m !== menu) m.classList.remove('open'); });
+  menu.classList.toggle('open');
+}
+
+function projectMenuAction(item, action) {
+  const card = item.closest('.project-card');
+  const menu = item.closest('.project-menu');
+  menu.classList.remove('open');
+
+  if (action === 'rename') {
+    const label = card.querySelector('.project-name-label');
+    if (label) startRenameProject(label);
+  } else if (action === 'delete') {
+    const name = card.querySelector('.project-name-label')?.textContent || '此项目';
+    const mask = document.getElementById('confirmDialog');
+    document.getElementById('confirmTitle').textContent = '确定删除「' + name + '」？';
+    document.getElementById('confirmDesc').textContent = '删除后无法恢复。';
+    document.getElementById('confirmBtn').textContent = '确认删除';
+    document.getElementById('confirmBtn').className = 'btn-danger';
+    mask.classList.add('open');
+    _confirmCb = function() {
+      const pid = card.dataset.projectId;
+      card.remove();
+      updateProjectCount();
+      renderHome();
+      if (pid && sb) {
+        sb.from('issues').delete().eq('project_id', pid).then(() => {
+          sb.from('projects').delete().eq('id', pid);
+        });
+      }
+      closeConfirm();
+    };
+  }
+}
+
+// 点击外部关闭菜单
+document.addEventListener('click', () => {
+  document.querySelectorAll('.project-menu.open').forEach(m => m.classList.remove('open'));
+});
 
 async function autoAnalyzeAll() {
   const btns = document.querySelectorAll('.pair-analyze-btn.visible');
@@ -2476,7 +2564,7 @@ function showOnboardingGuide() {
           <div style="font-size:12px;color:#6B6B73;line-height:1.6;">
             「<span style="color:#1A1A1A;font-weight:600;">线框</span>」模式下，在设计稿或者开发稿上拖拽画框，即可手动添加走查问题。
           </div>
-          <button onclick="dismissGuide()" style="margin-top:12px;width:100%;padding:7px 0;background:#10B981;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;">我知道了</button>
+          <button onclick="dismissGuide()" style="margin-top:12px;width:100%;padding:7px 0;background:#1E293B;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;">我知道了</button>
           <div style="position:absolute;bottom:-8px;left:${rect.left + rect.width / 2 - left - 8}px;width:16px;height:16px;background:#17171A;transform:rotate(45deg);box-shadow:4px 4px 8px rgba(0,0,0,.3);"></div>
         </div>
       </div>
@@ -2504,7 +2592,7 @@ function setRole(role) {
   // 头像
   const avatar = document.getElementById('userAvatar');
   avatar.className = 'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold cursor-pointer hover:ring-2 transition-all';
-  avatar.style.cssText = isDesigner ? 'background:rgba(16,185,129,0.15);color:var(--color-accent-bright);' : 'background:rgba(139,92,246,0.15);color:#A78BFA;';
+  avatar.style.cssText = isDesigner ? 'background:rgba(30,41,59,0.15);color:var(--color-accent-bright);' : 'background:rgba(139,92,246,0.15);color:#A78BFA;';
   // 角色标签不再显示文字（切换按钮已指示当前角色）
   renderStats();
   // update workbench role if visible
@@ -2601,14 +2689,32 @@ function closeConfirm() {
 
 // ── 从 Supabase 加载已有项目 ──────────────────────────────────
 async function loadProjectsFromDB() {
+  // 显示加载骨架屏
+  const proj = document.getElementById('hasProjects');
+  const grid = document.getElementById('projectGrid');
+  const label = document.getElementById('projectCountLabel');
+  if (proj && grid) {
+    proj.classList.remove('hidden');
+    if (label) label.textContent = '加载中…';
+    grid.innerHTML = Array(4).fill(0).map(() =>
+      `<div class="glass-card" style="padding:20px;border-radius:16px;animation:pulse 1.5s ease-in-out infinite;">
+        <div style="height:14px;width:40%;background:rgba(0,0,0,0.06);border-radius:6px;margin-bottom:12px;"></div>
+        <div style="height:10px;width:60%;background:rgba(0,0,0,0.04);border-radius:4px;margin-bottom:16px;"></div>
+        <div style="height:10px;width:30%;background:rgba(0,0,0,0.04);border-radius:4px;"></div>
+      </div>`
+    ).join('');
+  }
   try {
+    // 并行查询项目和 issue 数量
     const { data: projects } = await sb.from('projects').select('id, name, status, created_at, review_status').order('created_at', { ascending: false });
     if (projects && projects.length) {
-      // 批量查询每个项目的 issue 数量
       const projectIds = projects.map(p => p.id);
       const { data: issues } = await sb.from('issues').select('project_id').in('project_id', projectIds).or('deleted.is.null,deleted.eq.false');
       const issueCountMap = {};
       (issues || []).forEach(i => { issueCountMap[i.project_id] = (issueCountMap[i.project_id] || 0) + 1; });
+
+      // 清除骨架屏
+      if (grid) grid.innerHTML = '';
 
       projects.forEach(p => {
         const card = addProjectCard(p.name, p.review_status || '进行中', p.created_at, false, true);
@@ -2623,8 +2729,16 @@ async function loadProjectsFromDB() {
       // 批量插入完成后统一更新一次
       updateProjectCount();
       renderHome();
+    } else {
+      // 无项目，清除骨架屏并隐藏
+      if (grid) grid.innerHTML = '';
+      if (proj) proj.classList.add('hidden');
     }
-  } catch (e) { console.error('Load projects error:', e); }
+  } catch (e) {
+    console.error('Load projects error:', e);
+    if (grid) grid.innerHTML = '';
+    if (proj) proj.classList.add('hidden');
+  }
 }
 
 // 加载单个项目完整数据
@@ -2824,6 +2938,21 @@ async function loadProject(projectId) {
           const authorName = c.author || '匿名';
           item.innerHTML = `<div class="timeline-avatar bg-blue-100 text-blue-700">${escHtml(authorName.charAt(0))}</div><div class="flex-1 min-w-0"><div class="text-xs text-gray-800">${escHtml(c.text || '')}</div><div class="text-xs text-gray-400 mt-0.5">${escHtml(timeStr)}</div></div>`;
           tl.appendChild(item);
+        }
+        // 更新有评论的 toggle label
+        for (const issue of issues) {
+          const tl = document.getElementById('tl-' + issue.issue_number);
+          if (!tl) continue;
+          const count = tl.querySelectorAll('.flex.items-start').length;
+          if (count > 0) {
+            const toggle = tl.closest('.card-timeline-section')?.previousElementSibling;
+            if (toggle) {
+              const arrow = toggle.querySelector('.tl-arrow');
+              toggle.innerHTML = '';
+              if (arrow) toggle.appendChild(arrow);
+              toggle.appendChild(document.createTextNode(` 评论 · ${count}条`));
+            }
+          }
         }
       }
 
@@ -3047,7 +3176,7 @@ function showProximityAnalyzeIcon(cx, cy) {
     document.body.appendChild(icon);
     proximityIcon = icon;
     // Highlight the target image
-    closest.style.outline = '2px solid #10B981';
+    closest.style.outline = '2px solid #1E293B';
     closest.style.outlineOffset = '2px';
   } else {
     clearProximityAnalyzeIcon();
@@ -3505,7 +3634,7 @@ async function analyzePair(btnEl) {
       if (hint) hint.remove();
     }
 
-    const annoColor = '#10B981';
+    const annoColor = '#1E293B';
     const priorityClass = { '高': 'priority-high', '中': 'priority-mid', '低': 'priority-low' };
 
     // 计算当前 pair 在 canvas 中的页码索引
@@ -3729,7 +3858,7 @@ async function analyzePair(btnEl) {
     if (analyzeHint) {
       analyzeHint.innerHTML = `
         <div class="text-xs text-gray-400 mb-4">分析失败，请重试</div>
-        <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#10B981;color:#fff;cursor:pointer;">
+        <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#1E293B;color:#fff;cursor:pointer;">
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>
           重新分析
         </button>
@@ -3741,7 +3870,7 @@ async function analyzePair(btnEl) {
         issueList.innerHTML = `
           <div class="text-center" style="padding-top:40vh;" id="analyzeHint">
             <div class="text-xs text-gray-400 mb-4">分析失败，请重试</div>
-            <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#10B981;color:#fff;cursor:pointer;">
+            <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#1E293B;color:#fff;cursor:pointer;">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>
               重新分析
             </button>
@@ -4185,7 +4314,7 @@ function setAnnoMode(mode) {
       </div>
       <div style="display:flex;gap:8px;margin-top:12px;">
         <button id="drawIssueCancel" style="flex:1;padding:6px;font-size:12px;border:1px solid rgba(0,0,0,0.10);border-radius:8px;background:rgba(0,0,0,0.03);cursor:pointer;color:#3F3F46;">取消</button>
-        <button id="drawIssueConfirm" style="flex:1;padding:6px;font-size:12px;border:none;border-radius:8px;background:#10B981;color:#fff;cursor:pointer;font-weight:500;">新增</button>
+        <button id="drawIssueConfirm" style="flex:1;padding:6px;font-size:12px;border:none;border-radius:8px;background:#1E293B;color:#fff;cursor:pointer;font-weight:500;">新增</button>
       </div>
     `;
 
