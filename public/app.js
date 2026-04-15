@@ -1955,7 +1955,8 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
       img.style.cssText = 'width:100%;display:block;border-radius:8px;';
       dWrap.appendChild(img);
     } else {
-      dWrap.innerHTML = '<div style="height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应设计稿</div>';
+      dWrap.style.alignSelf = 'stretch';
+      dWrap.innerHTML = '<div style="height:100%;min-height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:13px;">无对应设计稿</div>';
     }
     pair.appendChild(dWrap);
 
@@ -1977,7 +1978,8 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
       img.style.cssText = 'width:100%;display:block;border-radius:8px;';
       vWrap.appendChild(img);
     } else {
-      vWrap.innerHTML = '<div style="height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应开发稿</div>';
+      vWrap.style.alignSelf = 'stretch';
+      vWrap.innerHTML = '<div style="height:100%;min-height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:13px;">无对应开发稿</div>';
     }
     pair.appendChild(vWrap);
 
@@ -2807,7 +2809,8 @@ async function loadProject(projectId) {
           img.style.cssText = 'width:100%;display:block;border-radius:8px;';
           dWrap.appendChild(img);
         } else {
-          dWrap.innerHTML = '<div style="height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应设计稿</div>';
+          dWrap.style.alignSelf = 'stretch';
+      dWrap.innerHTML = '<div style="height:100%;min-height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:13px;">无对应设计稿</div>';
         }
         pair.appendChild(dWrap);
 
@@ -2830,7 +2833,8 @@ async function loadProject(projectId) {
           img.style.cssText = 'width:100%;display:block;border-radius:8px;';
           vWrap.appendChild(img);
         } else {
-          vWrap.innerHTML = '<div style="height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:12px;">无对应开发稿</div>';
+          vWrap.style.alignSelf = 'stretch';
+      vWrap.innerHTML = '<div style="height:100%;min-height:200px;background:#F7F7F5;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9A9A90;font-size:13px;">无对应开发稿</div>';
         }
         pair.appendChild(vWrap);
 
@@ -2879,11 +2883,11 @@ async function loadProject(projectId) {
             <span class="status-badge ${PRIORITY_BADGE[issue.priority]} text-xs flex-shrink-0">${escHtml(issue.priority)}优先级</span>
             <span class="tag-type">${escHtml(issue.type)}</span>
           </div>
-          <div class="text-xs font-medium text-gray-900 mb-0.5 leading-snug"><span class="text-[10px] text-gray-400 font-mono mr-1">#${issue.issue_number}</span>${escHtml(issue.title)}</div>
+          <div class="text-xs font-medium text-gray-700 mb-0.5 leading-snug"><span class="text-[10px] text-gray-400 font-mono mr-1">#${issue.issue_number}</span>${escHtml(issue.title)}</div>
           <div class="text-[10px] text-gray-400 mb-1">${new Date(issue.created_at).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
           ${issue.description ? `<div class="text-[10px] text-gray-400 mb-2">${escHtml(issue.description)}</div>` : ''}
           ${(issue.expected_val || issue.actual_val) ? (() => { const _isC = v => /^#[0-9a-fA-F]{3,8}$/.test((v||'').trim()); return `<div class="grid grid-cols-2 gap-2 mb-2">
-            <div class="compare-left"><div class="text-xs text-gray-500 mb-1.5">设计稿预期</div><div class="flex items-center gap-1.5">${_isC(issue.expected_val) ? `<div class="w-5 h-5 rounded flex-shrink-0" style="background:${escHtml(issue.expected_val)}"></div>` : ''}<span class="font-mono text-xs text-gray-900">${escHtml(issue.expected_val || '')}</span></div></div>
+            <div class="compare-left"><div class="text-xs text-gray-500 mb-1.5">设计稿预期</div><div class="flex items-center gap-1.5">${_isC(issue.expected_val) ? `<div class="w-5 h-5 rounded flex-shrink-0" style="background:${escHtml(issue.expected_val)}"></div>` : ''}<span class="font-mono text-xs text-gray-700">${escHtml(issue.expected_val || '')}</span></div></div>
             <div class="compare-right"><div class="flex items-center justify-between mb-1.5"><span class="text-xs text-gray-400">实际</span><span class="text-xs text-red-500 font-medium">✕ 不匹配</span></div><div class="flex items-center gap-1.5">${_isC(issue.actual_val) ? `<div class="w-5 h-5 rounded flex-shrink-0" style="background:${escHtml(issue.actual_val)}"></div>` : ''}<span class="font-mono text-xs text-red-500">${escHtml(issue.actual_val || '')}</span></div></div>
           </div>`; })() : ''}
           <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-gray-100 meta-grid">
@@ -3344,7 +3348,7 @@ function insertAIReviewTip(count) {
   if (old) old.remove();
   const tip = document.createElement('div');
   tip.className = 'ai-review-tip';
-  tip.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg><span style="flex:1;text-align:left">AI 生成了 ${count} 个问题，建议检查后再分配给开发。误报可点击卡片右上角删除。</span><button onclick="this.parentElement.remove()" style="padding:2px 8px;border:none;background:none;color:#2563eb;font-size:12px;cursor:pointer;white-space:nowrap">知道了</button>`;
+  tip.innerHTML = `<span style="flex-shrink:0;font-size:14px;">ⓘ</span><span style="flex:1;text-align:left">AI 生成了 ${count} 个问题，建议检查后再分配给开发。误报可点击卡片右上角删除。</span><button onclick="this.parentElement.remove()" style="padding:2px 8px;border:none;background:none;color:#576B95;font-size:12px;cursor:pointer;white-space:nowrap">知道了</button>`;
   issueList.insertBefore(tip, issueList.firstChild);
 }
 
@@ -3684,7 +3688,7 @@ async function analyzePair(btnEl) {
         compareHtml = `<div class="grid grid-cols-2 gap-2 mb-2">
           <div class="compare-left">
             <div class="text-xs text-gray-500 mb-1.5">设计稿预期</div>
-            <div class="flex items-center gap-1.5">${isColor(expectedVal) ? `<div class="w-5 h-5 rounded flex-shrink-0" style="background:${escHtml(expectedVal)}"></div>` : ''}<span class="font-mono text-xs text-gray-900">${escHtml(expectedVal)}</span></div>
+            <div class="flex items-center gap-1.5">${isColor(expectedVal) ? `<div class="w-5 h-5 rounded flex-shrink-0" style="background:${escHtml(expectedVal)}"></div>` : ''}<span class="font-mono text-xs text-gray-700">${escHtml(expectedVal)}</span></div>
           </div>
           <div class="compare-right">
             <div class="flex items-center justify-between mb-1.5"><span class="text-xs text-gray-400">实际</span><span class="text-xs text-red-500 font-medium">\u2715 不匹配</span></div>
@@ -3706,7 +3710,7 @@ async function analyzePair(btnEl) {
           <span class="status-badge ${PRIORITY_BADGE[issue.priority]} text-xs flex-shrink-0">${escHtml(issue.priority)}优先级</span>
           <span class="tag-type">${escHtml(issue.type)}</span>
         </div>
-        <div class="text-xs font-medium text-gray-900 mb-0.5 leading-snug"><span class="text-[10px] text-gray-400 font-mono mr-1">#${_analyzeCounter}</span>${escHtml(issue.title)}</div>
+        <div class="text-xs font-medium text-gray-700 mb-0.5 leading-snug"><span class="text-[10px] text-gray-400 font-mono mr-1">#${_analyzeCounter}</span>${escHtml(issue.title)}</div>
         ${issue.element ? `<div class="text-[10px] text-blue-500 mb-0.5">\u{1F4CD} ${escHtml(issue.element)}</div>` : ''}
         <div class="text-[10px] text-gray-400 mb-1">刚刚 · AI 自动检测</div>
         <div class="text-[10px] text-gray-400 mb-2">${escHtml(issue.desc)}</div>
@@ -3829,6 +3833,7 @@ async function analyzePair(btnEl) {
     sortAnnoZIndex();
     // AI 提示条
     insertAIReviewTip(picked.length);
+    showToast('注意：上传非界面截图可能产生无效结果');
 
   } catch (err) {
     clearInterval(progressTimer);
@@ -3965,7 +3970,7 @@ function analyzePairMock(btnEl, pair, dev) {
         <div class="grid grid-cols-2 gap-2 mb-2">
           <div class="compare-left">
             <div class="text-xs text-gray-500 mb-1.5">设计稿预期</div>
-            <span class="font-mono text-xs text-gray-900">${escHtml(pool.expect)}</span>
+            <span class="font-mono text-xs text-gray-700">${escHtml(pool.expect)}</span>
           </div>
           <div class="compare-right">
             <div class="flex items-center justify-between mb-1.5"><span class="text-xs text-gray-400">实际</span><span class="text-xs text-red-500 font-medium">✕ 不匹配</span></div>
@@ -3978,7 +3983,7 @@ function analyzePairMock(btnEl, pair, dev) {
           <span class="status-badge ${PRIORITY_BADGE[issue.priority]} text-xs flex-shrink-0">${escHtml(issue.priority)}优先级</span>
           <span class="tag-type">${escHtml(issue.type)}</span>
         </div>
-        <div class="text-xs font-medium text-gray-900 mb-0.5 leading-snug"><span class="text-[10px] text-gray-400 font-mono mr-1">#${_analyzeCounter}</span>${escHtml(issue.title)}</div>
+        <div class="text-xs font-medium text-gray-700 mb-0.5 leading-snug"><span class="text-[10px] text-gray-400 font-mono mr-1">#${_analyzeCounter}</span>${escHtml(issue.title)}</div>
         ${issue.element ? `<div class="text-[10px] text-blue-500 mb-0.5">\u{1F4CD} ${escHtml(issue.element)}</div>` : ''}
         <div class="text-[10px] text-gray-400 mb-1">刚刚 · AI 自动检测</div>
         <div class="text-[10px] text-gray-400 mb-2">${escHtml(issue.desc)}</div>
@@ -4448,12 +4453,12 @@ function setAnnoMode(mode) {
         <span class="status-badge ${PRIORITY_BADGE[priority]} text-xs flex-shrink-0">${escHtml(priority)}优先级</span>
         <span class="tag-type">${escHtml(type)}</span>
       </div>
-      <div class="text-xs font-medium text-gray-900 mb-0.5 leading-snug"><span class="text-[10px] text-gray-400 font-mono mr-1">#${_analyzeCounter}</span>${escHtml(title)}</div>
+      <div class="text-xs font-medium text-gray-700 mb-0.5 leading-snug"><span class="text-[10px] text-gray-400 font-mono mr-1">#${_analyzeCounter}</span>${escHtml(title)}</div>
       <div class="text-[10px] text-gray-400 mb-2">刚刚</div>
       <div class="grid grid-cols-2 gap-2 mb-2">
         <div class="compare-left">
           <div class="text-xs text-gray-500 mb-1.5">设计稿预期</div>
-          <span class="font-mono text-xs text-gray-900">${escHtml(cmp.expect)}</span>
+          <span class="font-mono text-xs text-gray-700">${escHtml(cmp.expect)}</span>
         </div>
         <div class="compare-right">
           <div class="flex items-center justify-between mb-1.5"><span class="text-xs text-gray-400">实际</span><span class="text-xs text-red-500 font-medium">✕ 不匹配</span></div>
