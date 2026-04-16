@@ -163,7 +163,7 @@ tailwind.config = {
           <!-- 大标题区域（居中） -->
           <div class="text-center mb-10 stagger-1" style="position:relative;">
             <div class="peek-fox" aria-hidden="true">
-              <img src="horse.gif" alt="" style="width:120px;height:120px;" />
+              <img src="horse.webp" alt="" style="width:120px;height:120px;">
             </div>
             <h1 class="hero-title">上传设计稿和开发稿，AI 帮你找出还原差异</h1>
           </div>
@@ -242,9 +242,9 @@ tailwind.config = {
             </div>
             <!-- 底栏：输入框 + 按钮 -->
             <div class="flex items-center gap-4">
-              <div class="flex-1 flex items-center gap-2 rounded-2xl px-3 py-2.5 transition-all" style="border:1px solid rgba(0,0,0,0.05);background:rgba(255,255,255,0.55);">
+              <div class="task-name-wrap flex-1 flex items-center gap-2 rounded-2xl px-3 py-2.5 transition-all" style="border:1px solid rgba(0,0,0,0.05);background:rgba(255,255,255,0.55);">
                 <input id="taskNameCold" type="text" placeholder="输入走查任务名称"
-                  class="flex-1 text-sm text-gray-700 placeholder-gray-400 bg-transparent border-none outline-none" style="min-height:20px;" />
+                  class="flex-1 text-sm text-gray-700 placeholder-gray-400 bg-transparent" style="min-height:20px;border:none !important;outline:none !important;box-shadow:none !important;" />
               </div>
               <div class="relative flex-shrink-0 group" id="btnStartColdWrap">
                 <button id="btnStartCold" data-mode="cold" onclick="startCompare(this)" class="cta-btn flex items-center gap-1.5 text-sm px-5 py-2" disabled>
