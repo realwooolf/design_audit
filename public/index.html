@@ -16,7 +16,7 @@
 <!-- NOTE: 生产环境建议用 Tailwind CLI 生成静态 CSS 替换此 CDN -->
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <!-- Lottie Player -->
-<script src="https://unpkg.com/@lottiefiles/lottie-player@2/dist/lottie-player.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@lottiefiles/lottie-player@2/dist/lottie-player.js"></script>
 <script>
 tailwind.config = {
   theme: {
@@ -82,8 +82,8 @@ tailwind.config = {
 <!-- 移动端提示遮罩 -->
 <div id="mobileBlock" style="display:none;position:fixed;inset:0;z-index:9999;background:#F4F1EA;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;">
   <div style="font-size:48px;margin-bottom:20px;">🖥️</div>
-  <div style="font-size:18px;font-weight:600;color:#FFFFFF;margin-bottom:8px;">请在电脑端打开</div>
-  <div style="font-size:14px;color:#888888;line-height:1.6;max-width:280px;">设计验收小工具 走查工具需要较大屏幕操作，<br>请使用电脑浏览器访问以获得最佳体验。</div>
+  <div style="font-size:18px;font-weight:600;color:#1F1F1F;margin-bottom:8px;">请在电脑端打开</div>
+  <div style="font-size:14px;color:#6B6B64;line-height:1.6;max-width:280px;">设计验收小工具 走查工具需要较大屏幕操作，<br>请使用电脑浏览器访问以获得最佳体验。</div>
 </div>
 <script>
 (function(){
@@ -206,14 +206,14 @@ tailwind.config = {
                   </div>
                   <input id="figmaLinkInput" type="text"
                     placeholder="粘贴 Figma 链接（Frame / Section / Page 均可）"
-                    class="w-full text-xs rounded-lg px-3 py-2 mb-3 focus:outline-none transition-all" style="border:1px solid rgba(0,0,0,0.08);background:rgba(255,255,255,.5);" />
+                    class="w-full text-xs rounded-lg px-3 py-2 mb-3 focus:outline-none transition-all" style="border:1px solid rgba(0,0,0,0.08);background:#FFFFFF;" />
                   <div class="flex items-center justify-between mb-1.5">
                     <span class="text-xs text-gray-500">Personal Access Token</span>
                     <span class="text-[10px] text-gray-400 hover:text-[var(--color-accent)] cursor-pointer" onclick="showFigmaTokenHelp()">如何获取？</span>
                   </div>
                   <input id="figmaTokenInput" type="password"
                     placeholder="figd_..."
-                    class="w-full text-xs rounded-lg px-3 py-2 mb-1.5 focus:outline-none transition-all" style="border:1px solid rgba(0,0,0,0.08);background:rgba(255,255,255,.5);" />
+                    class="w-full text-xs rounded-lg px-3 py-2 mb-1.5 focus:outline-none transition-all" style="border:1px solid rgba(0,0,0,0.08);background:#FFFFFF;" />
                   <label class="flex items-center gap-1.5 mb-3 cursor-pointer select-none">
                     <input type="checkbox" id="figmaRememberToken" checked class="accent-[var(--color-accent)]" />
                     <span class="text-xs text-gray-400">记住 Token</span>

@@ -2580,7 +2580,7 @@ function showOnboardingGuide() {
             「<span style="color:#1A1A1A;font-weight:600;">线框</span>」模式下，在设计稿或者开发稿上拖拽画框，即可手动添加走查问题。
           </div>
           <button onclick="dismissGuide()" style="margin-top:12px;width:100%;padding:7px 0;background:#C65D3B;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;">我知道了</button>
-          <div style="position:absolute;bottom:-8px;left:${rect.left + rect.width / 2 - left - 8}px;width:16px;height:16px;background:#17171A;transform:rotate(45deg);box-shadow:4px 4px 8px rgba(0,0,0,.3);"></div>
+          <div style="position:absolute;bottom:-8px;left:${rect.left + rect.width / 2 - left - 8}px;width:16px;height:16px;background:#FFFFFF;border-right:1px solid rgba(0,0,0,0.08);border-bottom:1px solid rgba(0,0,0,0.08);transform:rotate(45deg);"></div>
         </div>
       </div>
     `;
@@ -3866,7 +3866,7 @@ async function analyzePair(btnEl, silent) {
       errMsg = '网络连接失败，请检查网络后重试';
     }
     if (!silent) showToast(errMsg);
-    console.error('分析失败详情:', err);
+    DEBUG && console.error('分析失败详情:', err);
     if (silent) throw err;
     // 重置按钮为可重新点击状态
     btnEl.innerHTML = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>';

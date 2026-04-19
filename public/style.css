@@ -212,6 +212,13 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.15); }
 
   input, textarea, select { font-family: inherit; background: #FFFFFF; border-color: rgba(0,0,0,0.08); color: #1F1F1F; }
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+    -webkit-text-fill-color: #1F1F1F !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
   input::placeholder, textarea::placeholder { color: rgba(0,0,0,0.3); }
   input:focus, textarea:focus, select:focus { border-color: rgba(198,93,59,0.5) !important; box-shadow: 0 0 0 3px rgba(198,93,59,0.12) !important; }
   input:focus-visible, textarea:focus-visible, select:focus-visible { outline: none; border-color: rgba(198,93,59,0.5); box-shadow: 0 0 0 3px rgba(198,93,59,0.12); }
