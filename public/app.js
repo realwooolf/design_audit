@@ -330,7 +330,7 @@ async function submitVerify() {
 
   const slot = getOrCreateVerifySlot(card);
   slot.className = 'rounded-lg px-3 py-2 text-xs text-gray-500 mb-2 flex items-center gap-2 bg-gray-100';
-  slot.innerHTML = `<div style="width:12px;height:12px;border:2px solid #1E293B;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div> AI 校验中…`;
+  slot.innerHTML = `<div style="width:12px;height:12px;border:2px solid #C65D3B;border-top-color:transparent;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0"></div> AI 校验中…`;
 
   // 查找设计稿图片
   const designInfo = findDesignImageForIssue(id);
@@ -1588,7 +1588,7 @@ function showFigmaImportHelp() {
       <div class="step"><div class="step-num">1</div><div class="step-text"><b>打开设计稿所在的 Figma 文件</b><br>在浏览器或 Figma 客户端中打开你要上传的设计稿所在的 Figma 文件。</div></div>
       <div class="step"><div class="step-num">2</div><div class="step-text"><b>复制文件链接</b><br>• <b>Frame / Section</b>：选中 → 右键 → Copy/Paste as → Copy link to selection<br>• <b>Page</b>：左上角页面列表 → 右键 → Copy link to page
         <div style="margin-top:10px;padding:8px 12px;background:#F9F7F4;border-radius:6px;border:1px solid #E8E5DF;font-size:12px;color:#8A8A82;line-height:1.6;">
-          <b style="color:#1A1A1A;">备注：不同链接的导入范围</b><br>• Frame 链接 → 导入 1 个画板<br>• Section 链接 → 导入该分区下所有 Frame<br>• Page 链接 → 导入该页面下所有顶层 Frame
+          <b style="color:#1A1A1A;">不同链接的导入范围</b><br>• Frame 链接 → 导入 1 个画板<br>• Section 链接 → 导入该分区下所有 Frame<br>• Page 链接 → 导入该页面下所有顶层 Frame
           <div style="margin-top:8px;">
             <img src="figma-structure.png" alt="Figma 层级结构：Page → Section → Frame" loading="lazy" style="width:100%;max-width:480px;border-radius:6px;border:1px solid #e8e5df;display:block;" />
           </div>
@@ -1997,7 +1997,7 @@ function populateCanvasWithUploads(designKey, devKey, projectName) {
       <div class="text-xs text-gray-400 mb-3">AI 正在分析中，请稍候...</div>
       <div class="analyze-panel-progress" style="margin:0 24px;">
         <div style="height:3px;background:rgba(0,0,0,.06);border-radius:4px;overflow:hidden;">
-          <div id="panelProgressFill" style="height:100%;width:0%;background:#1E293B;border-radius:4px;transition:width .4s ease;"></div>
+          <div id="panelProgressFill" style="height:100%;width:0%;background:#C65D3B;border-radius:4px;transition:width .4s ease;"></div>
         </div>
         <div class="text-[10px] text-gray-400 mt-1.5 text-center" id="panelProgressText">准备分析...</div>
       </div>
@@ -2419,20 +2419,33 @@ async function reAnalyzeAll() {
 
   // 重新逐对分析
   const btns = document.querySelectorAll('.pair-analyze-btn.visible');
+  let failCount = 0;
   for (const btn of btns) {
-    await analyzePair(btn);
+    try {
+      await analyzePair(btn, true);
+    } catch (e) {
+      failCount++;
+    }
   }
 
   reBtn.disabled = false;
   reBtn.style.opacity = '1';
   reBtn.style.cursor = 'pointer';
-  showToast('全部重新分析完成');
+  if (failCount === 0) {
+    showToast('全部重新分析完成');
+  } else if (failCount === btns.length) {
+    showToast('分析失败，请检查网络后重试');
+  } else {
+    showToast('部分分析失败（' + failCount + '/' + btns.length + '），请重试');
+  }
 }
 
 function showToast(msg) {
+  document.querySelectorAll('.app-toast').forEach(el => el.remove());
   const t = document.createElement('div');
+  t.className = 'app-toast';
   t.textContent = msg;
-  t.style.cssText = 'position:fixed;top:32px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.15);opacity:0;transition:opacity .2s;';
+  t.style.cssText = 'position:fixed;top:32px;left:50%;transform:translateX(-50%);background:#3D3530;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.15);opacity:0;transition:opacity .2s;';
   document.body.appendChild(t);
   requestAnimationFrame(() => t.style.opacity = '1');
   setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 200); }, 2000);
@@ -2566,7 +2579,7 @@ function showOnboardingGuide() {
           <div style="font-size:12px;color:#6B6B73;line-height:1.6;">
             「<span style="color:#1A1A1A;font-weight:600;">线框</span>」模式下，在设计稿或者开发稿上拖拽画框，即可手动添加走查问题。
           </div>
-          <button onclick="dismissGuide()" style="margin-top:12px;width:100%;padding:7px 0;background:#1E293B;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;">我知道了</button>
+          <button onclick="dismissGuide()" style="margin-top:12px;width:100%;padding:7px 0;background:#C65D3B;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;">我知道了</button>
           <div style="position:absolute;bottom:-8px;left:${rect.left + rect.width / 2 - left - 8}px;width:16px;height:16px;background:#17171A;transform:rotate(45deg);box-shadow:4px 4px 8px rgba(0,0,0,.3);"></div>
         </div>
       </div>
@@ -3180,7 +3193,7 @@ function showProximityAnalyzeIcon(cx, cy) {
     document.body.appendChild(icon);
     proximityIcon = icon;
     // Highlight the target image
-    closest.style.outline = '2px solid #1E293B';
+    closest.style.outline = '2px solid #C65D3B';
     closest.style.outlineOffset = '2px';
   } else {
     clearProximityAnalyzeIcon();
@@ -3414,7 +3427,7 @@ function sortAnnoZIndex() {
   });
 }
 
-async function analyzePair(btnEl) {
+async function analyzePair(btnEl, silent) {
   if (btnEl.classList.contains('analyzing') || btnEl.classList.contains('analyzed')) return;
   const pair = btnEl.closest('.canvas-pair');
   if (!pair) return;
@@ -3627,7 +3640,7 @@ async function analyzePair(btnEl) {
       btnEl.classList.remove('analyzing');
       btnEl.classList.add('analyzed');
       btnEl.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
-      showToast('未发现还原问题，设计还原度良好！');
+      if (!silent) showToast('未发现还原问题，设计还原度良好！');
       return;
     }
 
@@ -3638,7 +3651,7 @@ async function analyzePair(btnEl) {
       if (hint) hint.remove();
     }
 
-    const annoColor = '#1E293B';
+    const annoColor = '#C65D3B';
     const priorityClass = { '高': 'priority-high', '中': 'priority-mid', '低': 'priority-low' };
 
     // 计算当前 pair 在 canvas 中的页码索引
@@ -3825,7 +3838,7 @@ async function analyzePair(btnEl) {
     if (group) updateGroupLabel(group);
     if (currentAnnoMode === 'spotlight') setAnnoMode('spotlight');
 
-    showToast(`AI 发现 ${picked.length} 个还原问题`);
+    if (!silent) showToast(`AI 发现 ${picked.length} 个还原问题`);
     rebuildList();
     syncIssueCountToCard();
     showFilterSection();
@@ -3833,7 +3846,6 @@ async function analyzePair(btnEl) {
     sortAnnoZIndex();
     // AI 提示条
     insertAIReviewTip(picked.length);
-    showToast('注意：上传非界面截图可能产生无效结果');
 
   } catch (err) {
     clearInterval(progressTimer);
@@ -3853,8 +3865,9 @@ async function analyzePair(btnEl) {
     } else if (err.message && /Failed to fetch|network/i.test(err.message)) {
       errMsg = '网络连接失败，请检查网络后重试';
     }
-    showToast(errMsg);
+    if (!silent) showToast(errMsg);
     console.error('分析失败详情:', err);
+    if (silent) throw err;
     // 重置按钮为可重新点击状态
     btnEl.innerHTML = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>';
 
@@ -3863,7 +3876,7 @@ async function analyzePair(btnEl) {
     if (analyzeHint) {
       analyzeHint.innerHTML = `
         <div class="text-xs text-gray-400 mb-4">分析失败，请重试</div>
-        <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#1E293B;color:#fff;cursor:pointer;">
+        <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#C65D3B;color:#fff;cursor:pointer;">
           <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>
           重新分析
         </button>
@@ -3875,7 +3888,7 @@ async function analyzePair(btnEl) {
         issueList.innerHTML = `
           <div class="text-center" style="padding-top:40vh;" id="analyzeHint">
             <div class="text-xs text-gray-400 mb-4">分析失败，请重试</div>
-            <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#1E293B;color:#fff;cursor:pointer;">
+            <button onclick="retryAnalyze(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 20px;font-size:12px;font-weight:500;border:none;border-radius:8px;background:#C65D3B;color:#fff;cursor:pointer;">
               <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-2.64-6.36"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 3v6h-6"/></svg>
               重新分析
             </button>
@@ -4094,7 +4107,7 @@ function refreshSpotlightCanvas() {
     ctx.setTransform(2, 0, 0, 2, 0, 0);
     ctx.clearRect(0, 0, w, h);
     // 画暗层
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillStyle = 'rgba(60,40,30,0.4)';
     ctx.fillRect(0, 0, w, h);
     const annos = wrap.querySelectorAll('.issue-anno');
     const hasSelection = !!selectedIssueId;
@@ -4110,9 +4123,9 @@ function refreshSpotlightCanvas() {
       } else if (hasSelection) {
         // 未选中但有选中项：半暗覆盖（挖空后再填半透明）
         ctx.clearRect(al, at, aw, ah);
-        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillStyle = 'rgba(60,40,30,0.2)';
         ctx.fillRect(al, at, aw, ah);
-        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.fillStyle = 'rgba(60,40,30,0.4)';
       } else {
         // 无选中：正常挖空
         ctx.clearRect(al, at, aw, ah);
@@ -4173,7 +4186,7 @@ function setAnnoMode(mode) {
       canvas.style.height = h + 'px';
       const ctx = canvas.getContext('2d');
       ctx.scale(2, 2);
-      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillStyle = 'rgba(60,40,30,0.4)';
       ctx.fillRect(0, 0, w, h);
       // 挖空标注区域
       annos.forEach(anno => {
@@ -4206,9 +4219,11 @@ function setAnnoMode(mode) {
 (function() {
   let drawState = null;
   let activePopover = null;
+  let activePreview = null;
 
   function removePopover() {
     if (activePopover) { activePopover.remove(); activePopover = null; }
+    if (activePreview) { activePreview.remove(); activePreview = null; }
   }
 
   document.addEventListener('mousedown', function(e) {
@@ -4266,19 +4281,18 @@ function setAnnoMode(mode) {
     const top = parseFloat(preview.style.top);
     const w = parseFloat(preview.style.width);
     const h = parseFloat(preview.style.height);
-    preview.remove();
-
     const ds = drawState;
     drawState = null;
 
     // 面积太小则忽略
-    if (w < 3 || h < 3) return;
+    if (w < 3 || h < 3) { preview.remove(); return; }
 
     removePopover();
-    showAddIssuePopover(wrap, left, top, w, h);
+    showAddIssuePopover(wrap, left, top, w, h, preview);
   });
 
-  function showAddIssuePopover(wrap, left, top, w, h) {
+  function showAddIssuePopover(wrap, left, top, w, h, preview) {
+    activePreview = preview || null;
     const popover = document.createElement('div');
     popover.className = 'add-issue-popover';
     // 定位在视口层级（fixed），不被 img-wrap overflow 裁剪
@@ -4319,7 +4333,7 @@ function setAnnoMode(mode) {
       </div>
       <div style="display:flex;gap:8px;margin-top:12px;">
         <button id="drawIssueCancel" style="flex:1;padding:6px;font-size:12px;border:1px solid rgba(0,0,0,0.10);border-radius:8px;background:rgba(0,0,0,0.03);cursor:pointer;color:#3F3F46;">取消</button>
-        <button id="drawIssueConfirm" style="flex:1;padding:6px;font-size:12px;border:none;border-radius:8px;background:#1E293B;color:#fff;cursor:pointer;font-weight:500;">新增</button>
+        <button id="drawIssueConfirm" style="flex:1;padding:6px;font-size:12px;border:none;border-radius:8px;background:#C65D3B;color:#fff;cursor:pointer;font-weight:500;">新增</button>
       </div>
     `;
 
@@ -4547,4 +4561,66 @@ function setAnnoMode(mode) {
       clearLayer.style.maskImage = m;
     });
   });
+})();
+
+/* ── Ambient glow: gentle drift + mouse follow ── */
+(function() {
+  var a1 = document.getElementById('blob-a1');
+  var a2 = document.getElementById('blob-a2');
+  var cur = document.getElementById('blob-cursor');
+  if (!a1) return;
+
+  var W = window.innerWidth, H = window.innerHeight;
+  window.addEventListener('resize', function() { W = window.innerWidth; H = window.innerHeight; });
+
+  var mouseX = W * 0.6, mouseY = H * 0.3;
+  var curX = mouseX, curY = mouseY;
+  var mouseActive = false;
+
+  document.addEventListener('mousemove', function(e) {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    if (!mouseActive) { mouseActive = true; cur.classList.add('visible'); }
+  });
+  document.addEventListener('mouseleave', function() {
+    mouseActive = false;
+    cur.classList.remove('visible');
+  });
+
+  var t = 0;
+  (function loop() {
+    t += 0.003;
+
+    // ── Blob a1: subtle drift from top-right corner ──
+    var d1x = Math.sin(t * 0.15) * 60 + Math.cos(t * 0.08) * 30;
+    var d1y = Math.cos(t * 0.12) * 45 + Math.sin(t * 0.06) * 25;
+    var br1a = 42 + Math.sin(t * 0.18) * 12;
+    var br1b = 58 - Math.cos(t * 0.15 + 1) * 10;
+    var br1c = 46 + Math.sin(t * 0.2 + 2) * 11;
+    var br1d = 54 - Math.cos(t * 0.13 + 3) * 9;
+    a1.style.transform = 'translate(' + d1x + 'px,' + d1y + 'px)';
+    a1.style.borderRadius = br1a + '% ' + br1b + '% ' + br1c + '% ' + br1d + '%';
+
+    // ── Blob a2: subtle drift from bottom-left corner ──
+    var d2x = Math.cos(t * 0.12 + 1.5) * 50 + Math.sin(t * 0.07 + 0.8) * 25;
+    var d2y = Math.sin(t * 0.14 + 2) * 40 + Math.cos(t * 0.05 + 1.2) * 20;
+    var br2a = 44 + Math.cos(t * 0.16 + 4) * 10;
+    var br2b = 56 - Math.sin(t * 0.14 + 5) * 8;
+    var br2c = 48 + Math.cos(t * 0.19 + 6) * 9;
+    var br2d = 52 - Math.sin(t * 0.12 + 7) * 7;
+    a2.style.transform = 'translate(' + d2x + 'px,' + d2y + 'px)';
+    a2.style.borderRadius = br2a + '% ' + br2b + '% ' + br2c + '% ' + br2d + '%';
+
+    // ── Cursor blob: slow follow ──
+    curX += (mouseX - curX) * 0.02;
+    curY += (mouseY - curY) * 0.02;
+    var cra = 43 + Math.sin(t * 0.5) * 10;
+    var crb = 57 - Math.cos(t * 0.45 + 1) * 8;
+    var crc = 47 + Math.sin(t * 0.55 + 2) * 9;
+    var crd = 53 - Math.cos(t * 0.4 + 3) * 7;
+    cur.style.transform = 'translate(' + (curX - 225) + 'px,' + (curY - 225) + 'px)';
+    cur.style.borderRadius = cra + '% ' + crb + '% ' + crc + '% ' + crd + '%';
+
+    requestAnimationFrame(loop);
+  })();
 })();
