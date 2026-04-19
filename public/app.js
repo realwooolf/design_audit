@@ -1541,8 +1541,24 @@ function switchDesignTab(tab) {
     uploadTab.style.display = '';
     uploadTab.classList.remove('hidden');
     figmaTab.style.display = 'none';
-    uploadBtn.classList.add('seg-active');
-    figmaBtn.classList.remove('seg-active');
+    if (uploadBtn) uploadBtn.classList.add('seg-active');
+    if (figmaBtn) figmaBtn.classList.remove('seg-active');
+    // 恢复 placeholder 或 preview 的正确显示状态
+    const hasFiles = (uploadedFiles['previewDesign'] || []).length > 0;
+    const placeholder = document.getElementById('placeholderDesign');
+    const preview = document.getElementById('previewDesign');
+    const figmaLink = uploadTab.querySelector('.figma-switch-link');
+    if (hasFiles) {
+      if (placeholder) placeholder.classList.add('hidden');
+      if (preview) preview.classList.remove('hidden');
+      if (figmaLink) figmaLink.style.display = 'none';
+      uploadTab.classList.add('has-files');
+    } else {
+      if (placeholder) placeholder.classList.remove('hidden');
+      if (preview) preview.classList.add('hidden');
+      if (figmaLink) figmaLink.style.display = '';
+      uploadTab.classList.remove('has-files');
+    }
   } else {
     uploadTab.style.display = 'none';
     figmaTab.style.display = '';
