@@ -732,52 +732,9 @@ tailwind.config = {
                 </div>
               </div>
             </div>
-            <div class="timeline-toggle text-xs font-medium text-gray-400" onclick="toggleTimeline(this, event)"><span class="tl-arrow">▸</span> 评论 · 6条</div>
+            <div class="timeline-toggle text-xs font-medium text-gray-400" onclick="toggleTimeline(this, event)"><span class="tl-arrow">▸</span> 添加评论</div>
             <div class="card-timeline-section">
-              <div class="space-y-2 mt-2" id="tl-2">
-                <div class="flex items-start gap-2">
-                  <div class="timeline-avatar bg-purple-100 text-purple-700">雨</div>
-                  <div class="flex-1">
-                    <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">小雨</span><span class="text-[10px] px-1 py-0.5 rounded bg-blue-50 text-blue-500">设计师</span><span class="text-xs text-gray-400">· 04-04 10:15</span></div>
-                    <div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">@李明 弹窗内元素间距，设计稿是 16px，现在只有 8px，太挤了</div>
-                  </div>
-                </div>
-                <div class="flex items-start gap-2">
-                  <div class="timeline-avatar bg-blue-100 text-blue-700">李</div>
-                  <div class="flex-1">
-                    <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">李明</span><span class="text-[10px] px-1 py-0.5 rounded bg-green-50 text-green-600">前端</span><span class="text-xs text-gray-400">· 04-04 10:40</span></div>
-                    <div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">列表组件用的是 <span class="font-mono bg-white px-1 rounded border border-gray-200">gap-2</span>（8px），改成 16px 小屏上内容会不会显示不够？</div>
-                  </div>
-                </div>
-                <div class="flex items-start gap-2">
-                  <div class="timeline-avatar bg-purple-100 text-purple-700">雨</div>
-                  <div class="flex-1">
-                    <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">小雨</span><span class="text-[10px] px-1 py-0.5 rounded bg-blue-50 text-blue-500">设计师</span><span class="text-xs text-gray-400">· 04-04 10:52</span></div>
-                    <div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">小屏保持 12px，大屏 16px，用响应式处理</div>
-                  </div>
-                </div>
-                <div class="flex items-start gap-2">
-                  <div class="timeline-avatar bg-blue-100 text-blue-700">李</div>
-                  <div class="flex-1">
-                    <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">李明</span><span class="text-[10px] px-1 py-0.5 rounded bg-green-50 text-green-600">前端</span><span class="text-xs text-gray-400">· 04-04 14:20</span></div>
-                    <div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">改好了，<span class="font-mono bg-white px-1 rounded border border-gray-200">gap-3 md:gap-4</span>，请看一下</div>
-                  </div>
-                </div>
-                <div class="flex items-start gap-2">
-                  <div class="timeline-avatar bg-purple-100 text-purple-700">雨</div>
-                  <div class="flex-1">
-                    <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">小雨</span><span class="text-[10px] px-1 py-0.5 rounded bg-blue-50 text-blue-500">设计师</span><span class="text-xs text-gray-400">· 04-04 15:10</span></div>
-                    <div class="text-xs text-gray-600 bg-red-50 rounded-lg px-2 py-1.5 border border-red-200">大屏 OK 了，但小屏间距还是 8px 没变，确认推了吗？退回修改</div>
-                  </div>
-                </div>
-                <div class="flex items-start gap-2">
-                  <div class="timeline-avatar bg-blue-100 text-blue-700">李</div>
-                  <div class="flex-1">
-                    <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-medium text-gray-700">李明</span><span class="text-[10px] px-1 py-0.5 rounded bg-green-50 text-green-600">前端</span><span class="text-xs text-gray-400">· 04-05 09:30</span></div>
-                    <div class="text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">不好意思，上次漏了 <span class="font-mono bg-white px-1 rounded border border-gray-200">sm:</span> 断点，现在补上了，两端都改好了</div>
-                  </div>
-                </div>
-              </div>
+              <div class="space-y-2 mt-2" id="tl-2"></div>
               <div class="flex items-center gap-1.5 mt-2" onclick="event.stopPropagation()">
                 <input id="ci-2" type="text" placeholder="留言..." class="flex-1 text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 outline-none focus:border-blue-400 bg-gray-50" />
                 <button onclick="sendCardComment('ci-2','tl-2')" class="comment-send">发送</button>
