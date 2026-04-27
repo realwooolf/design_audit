@@ -2430,8 +2430,17 @@ async function reAnalyzeAll() {
     btn.innerHTML = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>';
   });
 
-  // 清理旧的扫描动画和标注
+  // 清理旧的扫描动画、标注和问题卡片
   document.querySelectorAll('.scan-overlay, .analyzing-mask').forEach(el => el.remove());
+  document.querySelectorAll('.issue-anno').forEach(el => el.remove());
+  const issueList = document.getElementById('issueList');
+  if (issueList) issueList.innerHTML = '';
+  allIssueCards = [];
+  _analyzeCounter = 0;
+  // 清理 Supabase 中旧的 AI 问题（重新分析会重新生成）
+  if (currentProjectId) {
+    sb.from('issues').delete().eq('project_id', currentProjectId).eq('source', 'ai').then(() => {});
+  }
 
   // 重新逐对分析
   const btns = document.querySelectorAll('.pair-analyze-btn.visible');
@@ -2774,6 +2783,18 @@ async function loadProjectsFromDB() {
 
 // 加载单个项目完整数据
 async function loadProject(projectId) {
+  // 显示 loading 遮罩
+  let _loadingMask = document.getElementById('projectLoadingMask');
+  if (!_loadingMask) {
+    _loadingMask = document.createElement('div');
+    _loadingMask.id = 'projectLoadingMask';
+    _loadingMask.style.cssText = 'position:fixed;inset:0;z-index:200;background:rgba(244,241,234,.85);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;backdrop-filter:blur(4px);';
+    _loadingMask.innerHTML = '<div style="width:28px;height:28px;border:2.5px solid rgba(198,93,59,.2);border-top-color:#C65D3B;border-radius:50%;animation:spin .7s linear infinite;"></div><div style="font-size:13px;color:#6B6B64;">加载项目中…</div>';
+    document.body.appendChild(_loadingMask);
+  } else {
+    _loadingMask.style.display = 'flex';
+  }
+
   currentProjectId = projectId;
   // 清理旧上传状态，避免项目间数据污染
   Object.keys(uploadedFiles).forEach(k => {
@@ -3019,7 +3040,16 @@ async function loadProject(projectId) {
       })
       .subscribe();
 
-  } catch (e) { console.error('Load project error:', e); showToast('项目加载失败，请检查网络后重试'); }
+    // 关闭 loading 遮罩
+    const _lm = document.getElementById('projectLoadingMask');
+    if (_lm) _lm.style.display = 'none';
+
+  } catch (e) {
+    console.error('Load project error:', e);
+    showToast('项目加载失败，请检查网络后重试');
+    const _lm = document.getElementById('projectLoadingMask');
+    if (_lm) _lm.style.display = 'none';
+  }
 }
 
 // ── Init ───────────────────────────────────────────────────────
@@ -3521,20 +3551,40 @@ async function analyzePair(btnEl, silent) {
     const analyzeProps = pairNodeSummary ? { nodeSummary: pairNodeSummary } : undefined;
     DEBUG && console.log('[DesignCheck] 发送给 Gemini:', pairNodeSummary ? `编号清单 ${pairNodeSummary.length} 字符` : '无 Figma 数据（纯图片模式）');
 
-    const _analyzeAC = new AbortController();
-    const _analyzeTimeout = setTimeout(() => _analyzeAC.abort(), 120000); // 2 分钟超时
-    const resp = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ designImage: designGridB64, devImage: devGridB64, designProps: analyzeProps }),
-      signal: _analyzeAC.signal,
-    });
-
-    clearTimeout(_analyzeTimeout);
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      throw new Error(err.error || '分析服务异常');
+    const _analyzeBody = JSON.stringify({ designImage: designGridB64, devImage: devGridB64, designProps: analyzeProps });
+    const MAX_RETRIES = 2;
+    let resp;
+    for (let _retry = 0; _retry <= MAX_RETRIES; _retry++) {
+      const _analyzeAC = new AbortController();
+      const _analyzeTimeout = setTimeout(() => _analyzeAC.abort(), 120000);
+      try {
+        resp = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: _analyzeBody,
+          signal: _analyzeAC.signal,
+        });
+        clearTimeout(_analyzeTimeout);
+        if (resp.ok) break;
+        // 429 限流不重试
+        if (resp.status === 429) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.error || '请求频率过高，请稍后重试');
+        }
+        if (_retry < MAX_RETRIES) {
+          DEBUG && console.log(`[DesignCheck] 分析请求失败(${resp.status})，${_retry + 1}/${MAX_RETRIES} 次重试…`);
+          await new Promise(r => setTimeout(r, 1500 * (_retry + 1)));
+          continue;
+        }
+        const err = await resp.json().catch(() => ({}));
+        throw new Error(err.error || '分析服务异常');
+      } catch (fetchErr) {
+        clearTimeout(_analyzeTimeout);
+        if (fetchErr.name === 'AbortError' || resp?.status === 429 || _retry >= MAX_RETRIES) throw fetchErr;
+        DEBUG && console.log(`[DesignCheck] 网络错误，${_retry + 1}/${MAX_RETRIES} 次重试…`, fetchErr.message);
+        if (panelText) panelText.textContent = `网络波动，正在重试(${_retry + 1}/${MAX_RETRIES})…`;
+        await new Promise(r => setTimeout(r, 1500 * (_retry + 1)));
+      }
     }
 
     const data = await resp.json();
