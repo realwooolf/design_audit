@@ -2430,13 +2430,20 @@ async function reAnalyzeAll() {
     btn.innerHTML = '<svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>';
   });
 
-  // 清理旧的扫描动画、标注和问题卡片
+  // 清理旧的扫描动画和 AI 生成的标注/问题卡片（保留手动添加的）
   document.querySelectorAll('.scan-overlay, .analyzing-mask').forEach(el => el.remove());
-  document.querySelectorAll('.issue-anno').forEach(el => el.remove());
-  const issueList = document.getElementById('issueList');
-  if (issueList) issueList.innerHTML = '';
-  allIssueCards = [];
-  _analyzeCounter = 0;
+  document.querySelectorAll('.issue-anno:not([data-manual])').forEach(el => el.remove());
+  // 保留手动添加的卡片，只移除 AI 生成的
+  const manualCards = [];
+  allIssueCards.forEach(c => {
+    if (c.dataset.source === 'manual') {
+      manualCards.push(c);
+    } else {
+      c.remove();
+    }
+  });
+  allIssueCards = manualCards;
+  _analyzeCounter = manualCards.length ? Math.max(...manualCards.map(c => parseInt(c.id.replace('issue-', '')) || 0)) : 0;
   // 清理 Supabase 中旧的 AI 问题（重新分析会重新生成）
   if (currentProjectId) {
     sb.from('issues').delete().eq('project_id', currentProjectId).eq('source', 'ai').then(() => {});
@@ -3587,6 +3594,9 @@ async function analyzePair(btnEl, silent) {
       }
     }
 
+    if (!resp || !resp.ok) {
+      throw new Error('分析请求失败，请检查网络后重试');
+    }
     const data = await resp.json();
     // 调试：打印 Gemini 原始返回
     DEBUG && console.log('[DesignCheck] Gemini 原始返回:', JSON.stringify(data.issues, null, 2));
@@ -4479,6 +4489,7 @@ function setAnnoMode(mode) {
     const anno = document.createElement('div');
     anno.className = 'issue-anno ' + pClass;
     anno.dataset.issueId = issueId;
+    anno.dataset.manual = '1';
     anno.style.cssText = `left:${left}%;top:${top}%;width:${w}%;height:${h}%;`;
     anno.setAttribute('onclick', `highlightIssue('${issueId}')`);
     anno.innerHTML = wrapType === 'dev'
@@ -4495,6 +4506,7 @@ function setAnnoMode(mode) {
         const anno2 = document.createElement('div');
         anno2.className = 'issue-anno ' + pClass;
         anno2.dataset.issueId = issueId;
+        anno2.dataset.manual = '1';
         anno2.style.cssText = `left:${left}%;top:${top}%;width:${w}%;height:${h}%;`;
         anno2.setAttribute('onclick', `highlightIssue('${issueId}')`);
         anno2.innerHTML = otherType === 'dev'
@@ -4526,6 +4538,7 @@ function setAnnoMode(mode) {
     card.dataset.type = type;
     card.dataset.priority = priority;
     card.dataset.status = '待分配';
+    card.dataset.source = 'manual';
     card.setAttribute('onclick', `selectIssue('${issueId}')`);
     card.innerHTML = `
       <button class="card-delete-btn designer-only" onclick="deleteIssue('${issueId}', event)" title="删除问题"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
