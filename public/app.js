@@ -2055,7 +2055,7 @@ async function startCompare(btn) {
       hasDesign = (uploadedFiles[designKey] || []).length > 0;
       figmaPendingImport = null;
     } catch (e) {
-      showToast('Figma 导入失败，请检查网络后重试');
+      showToast('Figma 导入失败，请检查网络后重试', true);
       setFigmaStatus('导入失败，请检查网络后重试', 'error', { retry: true });
       btn.disabled = false;
       btn.classList.remove('loading');
@@ -2410,11 +2410,18 @@ document.addEventListener('click', () => {
   document.querySelectorAll('.project-menu.open').forEach(m => m.classList.remove('open'));
 });
 
+// 并行分析，最多 CONCURRENCY 个同时进行
 async function autoAnalyzeAll() {
-  const btns = document.querySelectorAll('.pair-analyze-btn.visible');
-  for (const btn of btns) {
-    await analyzePair(btn);
+  const btns = Array.from(document.querySelectorAll('.pair-analyze-btn.visible'));
+  const CONCURRENCY = 3;
+  let i = 0;
+  async function next() {
+    while (i < btns.length) {
+      const btn = btns[i++];
+      try { await analyzePair(btn); } catch {}
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, btns.length) }, () => next()));
 }
 
 async function reAnalyzeAll() {
@@ -2449,16 +2456,18 @@ async function reAnalyzeAll() {
     sb.from('issues').delete().eq('project_id', currentProjectId).eq('source', 'ai').then(() => {});
   }
 
-  // 重新逐对分析
-  const btns = document.querySelectorAll('.pair-analyze-btn.visible');
+  // 重新并行分析（最多 3 个并发）
+  const btns = Array.from(document.querySelectorAll('.pair-analyze-btn.visible'));
   let failCount = 0;
-  for (const btn of btns) {
-    try {
-      await analyzePair(btn, true);
-    } catch (e) {
-      failCount++;
+  const CONCURRENCY = 3;
+  let idx = 0;
+  async function next() {
+    while (idx < btns.length) {
+      const btn = btns[idx++];
+      try { await analyzePair(btn, true); } catch { failCount++; }
     }
   }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, btns.length) }, () => next()));
 
   reBtn.disabled = false;
   reBtn.style.opacity = '1';
@@ -2466,21 +2475,23 @@ async function reAnalyzeAll() {
   if (failCount === 0) {
     showToast('全部重新分析完成');
   } else if (failCount === btns.length) {
-    showToast('分析失败，请检查网络后重试');
+    showToast('分析失败，请检查网络后重试', true);
   } else {
-    showToast('部分分析失败（' + failCount + '/' + btns.length + '），请重试');
+    showToast('部分分析失败（' + failCount + '/' + btns.length + '），请重试', true);
   }
 }
 
-function showToast(msg) {
+function showToast(msg, isError) {
   document.querySelectorAll('.app-toast').forEach(el => el.remove());
   const t = document.createElement('div');
   t.className = 'app-toast';
   t.textContent = msg;
-  t.style.cssText = 'position:fixed;top:32px;left:50%;transform:translateX(-50%);background:#3D3530;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.15);opacity:0;transition:opacity .2s;';
+  const bg = isError ? '#B91C1C' : '#3D3530';
+  t.style.cssText = `position:fixed;top:32px;left:50%;transform:translateX(-50%);background:${bg};color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.15);opacity:0;transition:opacity .2s;`;
   document.body.appendChild(t);
   requestAnimationFrame(() => t.style.opacity = '1');
-  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 200); }, 2000);
+  const duration = isError ? 5000 : 2000;
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 200); }, duration);
 }
 
 // ── 图片查看弹窗 ────────────────────────────────────────────────
@@ -3053,7 +3064,7 @@ async function loadProject(projectId) {
 
   } catch (e) {
     console.error('Load project error:', e);
-    showToast('项目加载失败，请检查网络后重试');
+    showToast('项目加载失败，请检查网络后重试', true);
     const _lm = document.getElementById('projectLoadingMask');
     if (_lm) _lm.style.display = 'none';
   }
@@ -3512,28 +3523,44 @@ async function analyzePair(btnEl, silent) {
   design.insertAdjacentHTML('beforeend', scanHtmlTpl);
   dev.insertAdjacentHTML('beforeend', scanHtmlTpl);
 
-  // 右侧面板进度条
+  // 右侧面板进度条 — 按实际步骤更新
   const panelFill = document.getElementById('panelProgressFill');
   const panelText = document.getElementById('panelProgressText');
   let progress = 0;
-  const progressTimer = setInterval(() => {
-    progress += (95 - progress) * 0.06;
-    if (panelFill) panelFill.style.width = progress + '%';
-    if (panelText) panelText.textContent = `正在分析... ${Math.round(progress)}%`;
-  }, 200);
+  let _apiSlowTimer = null;
+  function setProgress(val, text) {
+    progress = val;
+    if (panelFill) panelFill.style.width = val + '%';
+    if (panelText) panelText.textContent = text;
+  }
+  // API 等待期间的慢速爬升（从当前值到 90%）
+  function startApiCrawl() {
+    _apiSlowTimer = setInterval(() => {
+      progress += (90 - progress) * 0.03;
+      if (panelFill) panelFill.style.width = progress + '%';
+    }, 300);
+  }
+  function stopApiCrawl() {
+    if (_apiSlowTimer) { clearInterval(_apiSlowTimer); _apiSlowTimer = null; }
+  }
 
   try {
-    // 确保图片加载完成
+    // Step 1: 加载图片 (0→10%)
+    setProgress(5, '加载图片...');
     await Promise.all([waitForImgLoad(designImg), waitForImgLoad(devImg)]);
+    setProgress(10, '压缩图片...');
     const designData = imgToBase64(designImg);
     const devData = imgToBase64(devImg);
-    // 叠加坐标网格辅助 Gemini 空间定位（0-1000 坐标系）
+
+    // Step 2: 叠加坐标网格 (10→25%)
+    setProgress(15, '生成坐标网格...');
     const designRawB64 = `data:${designData.mime};base64,${designData.b64}`;
     const devRawB64 = `data:${devData.mime};base64,${devData.b64}`;
     const [designGridB64, devGridB64] = await Promise.all([
       addGridOverlay(designRawB64),
       addGridOverlay(devRawB64),
     ]);
+    setProgress(25, '准备发送分析请求...');
 
     // 按 pair 匹配对应的 Figma 编号清单
     let pairNodeList = null;   // 该 pair 的编号节点数组（用于定位）
@@ -3559,6 +3586,8 @@ async function analyzePair(btnEl, silent) {
     DEBUG && console.log('[DesignCheck] 发送给 Gemini:', pairNodeSummary ? `编号清单 ${pairNodeSummary.length} 字符` : '无 Figma 数据（纯图片模式）');
 
     const _analyzeBody = JSON.stringify({ designImage: designGridB64, devImage: devGridB64, designProps: analyzeProps });
+    setProgress(30, 'AI 分析中…');
+    startApiCrawl();
     const MAX_RETRIES = 2;
     let resp;
     for (let _retry = 0; _retry <= MAX_RETRIES; _retry++) {
@@ -3594,9 +3623,11 @@ async function analyzePair(btnEl, silent) {
       }
     }
 
+    stopApiCrawl();
     if (!resp || !resp.ok) {
       throw new Error('分析请求失败，请检查网络后重试');
     }
+    setProgress(92, '解析结果…');
     const data = await resp.json();
     // 调试：打印 Gemini 原始返回
     DEBUG && console.log('[DesignCheck] Gemini 原始返回:', JSON.stringify(data.issues, null, 2));
@@ -3704,9 +3735,8 @@ async function analyzePair(btnEl, silent) {
     });
 
     // 完成进度条动画
-    clearInterval(progressTimer);
-    if (panelFill) panelFill.style.width = '100%';
-    if (panelText) panelText.textContent = '分析完成';
+    stopApiCrawl();
+    setProgress(100, '分析完成');
     await new Promise(r => setTimeout(r, 400));
 
     // 移除扫描动画
@@ -3924,9 +3954,8 @@ async function analyzePair(btnEl, silent) {
     insertAIReviewTip(picked.length);
 
   } catch (err) {
-    clearInterval(progressTimer);
-    if (panelFill) panelFill.style.width = '0%';
-    if (panelText) panelText.textContent = '分析失败';
+    stopApiCrawl();
+    setProgress(0, '分析失败');
     pair.querySelectorAll('.scan-overlay, .analyzing-mask').forEach(el => el.remove());
     btnEl.classList.remove('analyzing');
     let errMsg = '分析失败，请重试';
@@ -3941,7 +3970,7 @@ async function analyzePair(btnEl, silent) {
     } else if (err.message && /Failed to fetch|network/i.test(err.message)) {
       errMsg = '网络连接失败，请检查网络后重试';
     }
-    if (!silent) showToast(errMsg);
+    if (!silent) showToast(errMsg, true);
     DEBUG && console.error('分析失败详情:', err);
     if (silent) throw err;
     // 重置按钮为可重新点击状态
