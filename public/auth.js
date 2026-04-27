@@ -70,15 +70,21 @@
     document.getElementById('page-auth').classList.remove('active');
     document.getElementById('page-auth').style.display = 'none';
     document.getElementById('page-home').classList.add('active');
-    // 设置用户名和头像（取邮箱首字母）
+    // 设置用户名和头像
     sb.auth.getUser().then(({ data: { user } }) => {
       if (user && user.email) {
         const initial = user.email.charAt(0).toUpperCase();
         document.getElementById('userAvatar').textContent = initial;
         document.getElementById('userName').textContent = user.email;
+        // 真实用户显示退出登录
+        const logoutEl = document.getElementById('logoutSection');
+        if (logoutEl) logoutEl.classList.remove('hidden');
+      } else {
+        // 访客
+        document.getElementById('userAvatar').textContent = 'U';
+        document.getElementById('userName').textContent = '访客';
       }
     });
-    // 不显示默认角色标签（切换按钮已足够）
     // 触发项目加载
     if (typeof loadProjectsFromDB === 'function') loadProjectsFromDB();
   }
@@ -97,13 +103,8 @@
     await sb.auth.signOut();
     currentUserId = null;
     currentProjectId = null;
-    document.getElementById('page-home').classList.remove('active');
-    document.getElementById('page-auth').style.display = '';
-    document.getElementById('page-auth').classList.add('active');
-    // 清空项目列表
-    const grid = document.getElementById('projectGrid');
-    if (grid) grid.innerHTML = '';
-    renderHome();
+    // 退出后刷新页面，会自动重新匿名登录
+    location.reload();
   }
 
   // ---- 忘记密码 ----
@@ -198,12 +199,15 @@
     localStorage.removeItem('rememberedPassword');
   });
 
-  // 检查已有登录状态
+  // 自动进入：有已有 session 则直接进入，否则显示登录页
   sb.auth.getSession().then(({ data: { session } }) => {
     if (session) {
       currentUserId = session.user.id;
       enterApp();
+    } else {
+      // 未登录，显示登录页
+      document.getElementById('page-auth').style.display = '';
+      document.getElementById('page-auth').classList.add('active');
+      checkPasswordRecovery();
     }
-    // 检查是否为密码重置回调
-    checkPasswordRecovery();
   });
