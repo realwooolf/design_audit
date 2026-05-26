@@ -1,4 +1,5 @@
-const PRIMARY_MODEL = 'gpt-4o';
+const PRIMARY_MODEL = 'gemini-2.5-flash';
+const FALLBACK_MODEL = 'gemini-2.0-flash';
 
 // 简单内存限流：每 IP 每分钟最多 MAX_REQ 次
 const RATE_LIMIT = { windowMs: 60000, maxReq: 5 };
@@ -119,34 +120,45 @@ export default async function handler(req, res) {
       propsContext = `\n\n【Figma 元素编号清单】以下是设计稿中的元素列表，每个元素有唯一编号。发现问题时请在 node_index 字段返回对应编号。\n${designProps.nodeSummary}`;
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-
     const requestBody = {
-      model: PRIMARY_MODEL,
-      max_tokens: 16384,
-      temperature: 0,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: PROMPT + propsContext },
-          { type: 'image_url', image_url: { url: `data:${design.mimeType};base64,${design.data}` } },
-          { type: 'image_url', image_url: { url: `data:${dev.mimeType};base64,${dev.data}` } }
+      contents: [{
+        parts: [
+          { text: PROMPT + propsContext },
+          { inlineData: { mimeType: design.mimeType, data: design.data } },
+          { inlineData: { mimeType: dev.mimeType, data: dev.data } }
         ]
-      }]
+      }],
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 16384
+      }
     };
 
-    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(requestBody)
-    });
-    const json = await resp.json();
-    if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
+    const apiKey = process.env.GEMINI_API_KEY;
 
-    const rawText = json.choices?.[0]?.message?.content || '{}';
+    async function callGemini(model) {
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        }
+      );
+      const j = await resp.json();
+      if (j.error) throw new Error(j.error.message || JSON.stringify(j.error));
+      return j;
+    }
+
+    let json;
+    try {
+      json = await callGemini(PRIMARY_MODEL);
+    } catch (primaryErr) {
+      console.warn(`Primary model (${PRIMARY_MODEL}) failed: ${primaryErr.message}, falling back to ${FALLBACK_MODEL}`);
+      json = await callGemini(FALLBACK_MODEL);
+    }
+
+    const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
     let text = rawText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
     let issues = [];
