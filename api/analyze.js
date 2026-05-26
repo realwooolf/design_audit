@@ -1,5 +1,5 @@
-const PRIMARY_MODEL = 'gemini-2.5-flash';
-const FALLBACK_MODEL = 'gemini-2.0-flash';
+const PRIMARY_MODEL = 'gemini-2.5-pro';
+const FALLBACK_MODEL = 'gemini-2.5-flash';
 
 // 简单内存限流：每 IP 每分钟最多 MAX_REQ 次
 const RATE_LIMIT = { windowMs: 60000, maxReq: 5 };
