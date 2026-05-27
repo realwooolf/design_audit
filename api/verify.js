@@ -83,16 +83,25 @@ ${areaDesc}
     };
 
     const apiKey = process.env.GEMINI_API_KEY;
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      }
-    );
-
-    const json = await response.json();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 55000);
+    let response;
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        }
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+    const respText = await response.text();
+    let json;
+    try { json = JSON.parse(respText); } catch { throw new Error(`Gemini 返回非 JSON 响应 (HTTP ${response.status})`); }
     if (json.error) {
       throw new Error(json.error.message || JSON.stringify(json.error));
     }

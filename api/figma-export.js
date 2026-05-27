@@ -102,28 +102,20 @@ async function handleExport(fileKey, nodeIds, headers, scale, res) {
     return res.status(400).json({ error: `Figma 导出错误: ${data.err}` });
   }
 
-  // 逐个下载图片并转 base64
-  const images = [];
-  for (const nid of nodeIds) {
+  // 并行下载所有图片并转 base64
+  const images = await Promise.all(nodeIds.map(async (nid) => {
     const imgUrl = data.images?.[nid];
-    if (!imgUrl) {
-      images.push({ nodeId: nid, image: null, error: '该节点无法导出图片' });
-      continue;
-    }
-
+    if (!imgUrl) return { nodeId: nid, image: null, error: '该节点无法导出图片' };
     try {
       const imgResp = await fetch(imgUrl);
-      if (!imgResp.ok) {
-        images.push({ nodeId: nid, image: null, error: '图片下载失败' });
-        continue;
-      }
+      if (!imgResp.ok) return { nodeId: nid, image: null, error: '图片下载失败' };
       const arrayBuffer = await imgResp.arrayBuffer();
       const base64 = Buffer.from(arrayBuffer).toString('base64');
-      images.push({ nodeId: nid, image: base64 });
-    } catch (e) {
-      images.push({ nodeId: nid, image: null, error: '图片下载超时' });
+      return { nodeId: nid, image: base64 };
+    } catch {
+      return { nodeId: nid, image: null, error: '图片下载超时' };
     }
-  }
+  }));
 
   return res.status(200).json({ images });
 }
