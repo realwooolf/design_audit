@@ -25,9 +25,13 @@ const MAX_BODY_SIZE = 20 * 1024 * 1024;
 // 方案1：颜色归一化，将图片统一转为 sRGB 色域
 // 消除 Figma P3 色域与设备 sRGB 之间的天然色差，避免颜色误报
 async function normalizeToSRGB(b64data) {
-  const buffer = Buffer.from(b64data, 'base64');
-  const normalized = await sharp(buffer).toColorspace('srgb').png().toBuffer();
-  return normalized.toString('base64');
+  try {
+    const buffer = Buffer.from(b64data, 'base64');
+    const normalized = await sharp(buffer).toColorspace('srgb').png().toBuffer();
+    return normalized.toString('base64');
+  } catch {
+    return b64data;
+  }
 }
 
 const PROMPT = `你是一个专业的 UI 走查差异检测工具。你的唯一任务是：对比设计稿和开发稿两张图片，找出视觉还原差异。
