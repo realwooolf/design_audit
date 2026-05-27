@@ -21,9 +21,16 @@ function parseB64(b64str) {
   return { mimeType: 'image/jpeg', data: b64str };
 }
 
+const MAX_BODY_SIZE = 50 * 1024 * 1024;
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const bodySize = JSON.stringify(req.body).length;
+  if (bodySize > MAX_BODY_SIZE) {
+    return res.status(413).json({ error: '请求体过大，单次请求不超过 50MB' });
   }
 
   try {
@@ -67,16 +74,25 @@ export default async function handler(req, res) {
     };
 
     const apiKey = process.env.GEMINI_API_KEY;
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      }
-    );
-
-    const json = await response.json();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 55000);
+    let response;
+    try {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal,
+        }
+      );
+    } finally {
+      clearTimeout(timer);
+    }
+    const respText = await response.text();
+    let json;
+    try { json = JSON.parse(respText); } catch { throw new Error(`Gemini 返回非 JSON 响应 (HTTP ${response.status})`); }
     if (json.error) {
       throw new Error(json.error.message || JSON.stringify(json.error));
     }
