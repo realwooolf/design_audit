@@ -1,3 +1,5 @@
+import sharp from 'sharp';
+
 const PRIMARY_MODEL = 'gemini-2.5-pro';
 const FALLBACK_MODEL = 'gemini-2.5-flash';
 
@@ -11,7 +13,6 @@ function checkRateLimit(req) {
   if (hits.length >= RATE_LIMIT.maxReq) return false;
   hits.push(now);
   _rlMap.set(ip, hits);
-  // 防内存泄漏：清理过期 IP
   if (_rlMap.size > 500) {
     for (const [k, v] of _rlMap) { if (v.every(t => now - t > RATE_LIMIT.windowMs)) _rlMap.delete(k); }
   }
@@ -21,66 +22,95 @@ function checkRateLimit(req) {
 // 请求体大小限制 20MB
 const MAX_BODY_SIZE = 20 * 1024 * 1024;
 
+// 方案1：颜色归一化，将图片统一转为 sRGB 色域
+// 消除 Figma P3 色域与设备 sRGB 之间的天然色差，避免颜色误报
+async function normalizeToSRGB(b64data) {
+  const buffer = Buffer.from(b64data, 'base64');
+  const normalized = await sharp(buffer).toColorspace('srgb').png().toBuffer();
+  return normalized.toString('base64');
+}
+
 const PROMPT = `你是一个专业的 UI 走查差异检测工具。你的唯一任务是：对比设计稿和开发稿两张图片，找出视觉还原差异。
 
 输入：
-- 第一张图：设计稿（Figma 设计规范）
-- 第二张图：开发稿（实际开发效果）
+- 第一张图：设计稿（Figma 设计规范，已归一化为 sRGB 色域）
+- 第二张图：开发稿（实际开发效果，已归一化为 sRGB 色域）
 - 两张图片上叠加了红色坐标网格，网格标签为 0-1000 坐标系（如 "300,500" 表示 x=300, y=500）
-- 可能附带【Figma 元素编号清单】：每个设计元素有唯一编号、类型、视觉属性和位置提示
+- 可能附带【像素差异图】和【Figma 元素编号清单】
 
-检测范围：
-- 颜色差异、间距/边距差异、字体大小/粗细差异、圆角差异
-- 透明度差异、布局对齐问题、内容/文字不一致、图标/图片差异
+【硬性规则 — 必须严格遵守】
+1. 严禁报告任何字重（font-weight）问题。Figma 与真实设备渲染引擎不同，字重视觉差异是天然现象，不属于开发错误，一律不得输出
+2. 如果提供了像素差异图：只在差异图红色区域内寻找问题，红色区域以外不报告任何问题
+3. 每个问题必须能明确说出"设计稿是X，开发稿是Y"，说不出具体差异就不报
 
-严格质量控制（最重要 — 防止误报）：
-- 只报告肉眼可以辨别的差异。间距、圆角、颜色等视觉属性只要看得出来就应报告，不需要"非常夸张"才算
-- 绝对禁止猜测性差异：如果你不确定是否存在差异，就不要报告
-- 字重差异：必须确认视觉上有明显粗细区别才可报告。JPEG 压缩伪影和抗锯齿渲染差异不算字重不一致
-- 圆角差异：有圆角 vs 无圆角、或明显大小差异（如 8px vs 16px）都应报告；仅 1-2px 的渲染微差不算
-- 颜色差异：必须有明显可辨别的色差才报告，图片压缩造成的轻微色偏不算
-- 样式差异：必须是确实不同的样式属性，不要把渲染引擎差异当成样式问题
-- 漏报和误报同样有害：能看出来的差异都应该报告，不要因为"不够确定"而主动减少问题数量
-- 如果提供了像素差异图，差异图中的红色区域是算法已经确认存在差异的地方，必须报告，不能忽略
-- 地图、卫星图、实景照片等动态渲染内容：这些区域内的细节在不同设备/渲染时会自然变化，不属于还原度问题，不要报告
-- "新增元素"类问题：必须确认该元素确实只在开发稿中存在、设计稿中完全没有对应元素
-- 如果编号清单中某元素的属性与图片视觉一致，即使图片看起来略有差异（渲染/压缩导致），也不要报告
-- 禁止重复：每个元素只能报告一次，禁止对同一个元素重复报告相同或相似的问题。如果同一问题影响多个相同组件，只报告一次并在 desc 中说明
+【检测范围】
+颜色类：
+- 背景色明显偏差（色调、明度、饱和度肉眼可见差异）
+- 文字颜色明显偏差
+- 图标颜色明显偏差
+- 边框颜色明显偏差
+- 背景缺失（设计稿有填充色，开发稿没有）
+
+形状与圆角：
+- 圆角大小明显不同（直角 vs 圆角，或大圆角 vs 小圆角）
+- 元素形状差异（圆形变方形等）
+
+间距与布局：
+- 组件之间的间距明显偏差
+- 组件内部 padding 明显偏差
+- 元素对齐方式不一致
+
+图标与图片：
+- 图标图案错误（不同图标）
+- 图标背景样式差异（有无背景、背景形状）
+
+内容：
+- 文案与设计稿不一致
+- 元素缺失或多余
+
+【不报告的情况】
+- 字重差异：严禁，无论差异看起来多明显
+- 轻微色差：图片压缩、抗锯齿、渲染引擎差异导致的细微色偏
+- 字体边缘模糊：不同渲染引擎的正常差异
+- 说不清楚的差异：无法明确描述"设计稿是X，开发稿是Y"的不报
+
+【质量要求】
+- 宁可漏报，不要误报
+- 每个问题必须写出：设计稿里是什么 vs 开发稿里是什么
+- 重点关注：间距、圆角、背景缺失——这类问题容易被忽略
 
 数值规则：
 1. "expected"（设计稿预期值）：
-   - 如果有编号清单 → 直接引用清单中该编号元素的精确属性值，如 "填充: #FF6B35"、"字号: 16px"、"圆角: 12px"
-   - 如果没有编号清单 → 用定性描述（如"较粗的字体"、"深色背景"）
+   - 如果有编号清单 → 直接引用清单中该编号元素的精确属性值
+   - 如果没有编号清单 → 用定性描述（如"深蓝色背景"、"大圆角"）
 2. "actual"（开发稿实际表现）：
-   - 永远不要猜测具体数值（禁止猜 hex 色值、猜像素值）
-   - 只做定性描述，如："颜色偏蓝"、"字体明显更细"、"间距偏大"、"圆角更小"
-3. 绝对禁止：输出"(估算值)"、"(估计)"、"约 #xxx"、"大概 16px"等。不确定就用文字描述。
+   - 不猜测具体数值，只做定性描述（如"颜色偏灰"、"无圆角"、"间距更小"）
+3. 绝对禁止：输出"(估算值)"、"约 #xxx"、"大概 16px"等
 
 元素定位：
-- 如果有编号清单（最重要）：必须在 node_index 字段填写对应元素的编号数字。系统会自动使用 Figma 精确坐标定位标注框。有编号清单时禁止自行提供 box_2d，必须通过 node_index 定位
-- 如果没有编号清单（纯图片模式）：提供 design_box 和 dev_box，格式为 [y_min, x_min, y_max, x_max]（0-1000 归一化整数值）。box_2d 坐标必须紧密包围目标元素边界，请仔细对照图片上的红色网格刻度确认数值
-- 匹配编号时，通过元素的类型、视觉属性（颜色、字号等）和位置提示词来确认正确的编号。如果有多个相似元素，根据位置提示词区分
+- 如果有编号清单：必须在 node_index 字段填写编号，禁止自行提供 box_2d
+- 如果没有编号清单：提供 design_box 和 dev_box，格式为 [y_min, x_min, y_max, x_max]（0-1000 归一化整数值）
 
 描述要求：
-- "desc" 客观描述差异事实，禁止主观评价（如"缺乏层次感"、"不够精致"）
+- "desc" 客观描述差异事实，禁止主观评价
 
 请严格以纯 JSON 格式返回，不要使用 \`\`\`json 代码块，不要有任何解释文字。
-返回格式：{"issues": [...]}，最多返回 10 个问题。所有能看出来的差异都要报告，不要因为"不够明显"自行过滤。
+返回格式：{"issues": [...]}，最多返回 10 个问题。
 每个问题字段：
 {
-  "title": "简短描述（如：标题字重不一致）",
-  "element": "问题所在元素的中文语义描述（如：主操作按钮）",
-  "node_index": 编号清单中对应元素的编号数字（如果有清单则必填，没有清单则省略）,
+  "title": "简短描述",
+  "element": "问题所在元素的中文语义描述",
+  "node_index": 编号清单中对应元素的编号数字（有清单时必填）,
   "type": "视觉 或 布局 或 内容一致性",
   "priority": "高 或 中 或 低",
-  "expected": "设计稿精确值（来自编号清单）或定性描述",
-  "actual": "开发稿的定性差异描述（不猜数值）",
+  "expected": "设计稿精确值或定性描述",
+  "actual": "开发稿的定性差异描述",
   "desc": "客观差异描述",
   "design_box": [y_min, x_min, y_max, x_max],
   "dev_box": [y_min, x_min, y_max, x_max]
 }
 
-注意：design_box 和 dev_box 在有编号清单时为可选（系统用 node_index 定位），在纯图片模式时为必填。
+注意：design_box 和 dev_box 在有编号清单时为可选，在纯图片模式时为必填。
 如果没有发现差异，返回 {"issues": []}。`;
 
 function parseB64(b64str) {
@@ -94,12 +124,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // 限流检查
   if (!checkRateLimit(req)) {
     return res.status(429).json({ error: '请求过于频繁，请稍后再试' });
   }
 
-  // 请求体大小检查
   const bodySize = JSON.stringify(req.body).length;
   if (bodySize > MAX_BODY_SIZE) {
     return res.status(413).json({ error: '请求体过大，单次请求不超过 20MB' });
@@ -111,10 +139,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: '需要同时提供设计稿和开发稿图片' });
     }
 
-    const design = parseB64(designImage);
-    const dev = parseB64(devImage);
+    const designParsed = parseB64(designImage);
+    const devParsed = parseB64(devImage);
 
-    // 如果有 Figma 编号清单，追加到 prompt
+    // 方案1：颜色归一化，统一转为 sRGB，消除 Figma P3 色域差异
+    const [designNorm, devNorm] = await Promise.all([
+      normalizeToSRGB(designParsed.data),
+      normalizeToSRGB(devParsed.data),
+    ]);
+
     let propsContext = '';
     if (designProps?.nodeSummary) {
       propsContext = `\n\n【Figma 元素编号清单】以下是设计稿中的元素列表，每个元素有唯一编号。发现问题时请在 node_index 字段返回对应编号。\n${designProps.nodeSummary}`;
@@ -123,25 +156,24 @@ export default async function handler(req, res) {
     const parts = [
       { text: PROMPT + propsContext },
       { text: '【第一张图：设计稿】' },
-      { inlineData: { mimeType: design.mimeType, data: design.data } },
+      { inlineData: { mimeType: 'image/png', data: designNorm } },
       { text: '【第二张图：开发稿】' },
-      { inlineData: { mimeType: dev.mimeType, data: dev.data } },
+      { inlineData: { mimeType: 'image/png', data: devNorm } },
     ];
 
     if (diffImage) {
       const diff = parseB64(diffImage);
-      parts.push({ text: '【第三张图：像素差异图】红色高亮区域是两图存在像素差异的地方，白色区域表示相同。请重点针对红色标注区域，分析它们代表的具体设计还原问题。' });
+      // 方案3：差异热图作为过滤器，AI 只在红色区域内找问题
+      parts.push({ text: '【第三张图：像素差异图】红色区域 = 算法检测到的像素差异位置，白色区域 = 两图相同。你只能在红色区域内寻找和报告问题，白色区域不得报告任何问题。' });
       parts.push({ inlineData: { mimeType: diff.mimeType, data: diff.data } });
     }
 
     const requestBody = {
-      contents: [{
-        parts
-      }],
+      contents: [{ parts }],
       generationConfig: {
         temperature: 0,
-        maxOutputTokens: 16384
-      }
+        maxOutputTokens: 16384,
+      },
     };
 
     const apiKey = process.env.GEMINI_API_KEY;
@@ -152,7 +184,7 @@ export default async function handler(req, res) {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
+          body: JSON.stringify(requestBody),
         }
       );
       const j = await resp.json();
