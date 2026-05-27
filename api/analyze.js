@@ -115,7 +115,7 @@ const PROMPT = `你是一个专业的 UI 走查差异检测工具。你的唯一
   "dev_box": [y_min, x_min, y_max, x_max]
 }
 
-注意：design_box 和 dev_box 在有编号清单时为可选，在纯图片模式时为必填。
+注意：design_box 和 dev_box 无论是否有编号清单，都必须填写。
 如果没有发现差异，返回 {"issues": []}。`;
 
 function parseB64(b64str) {
