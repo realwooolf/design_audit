@@ -184,15 +184,25 @@ export default async function handler(req, res) {
     const apiKey = process.env.GEMINI_API_KEY;
 
     async function callGemini(model) {
-      const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        }
-      );
-      const j = await resp.json();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 55000);
+      let resp;
+      try {
+        resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+          }
+        );
+      } finally {
+        clearTimeout(timer);
+      }
+      const text = await resp.text();
+      let j;
+      try { j = JSON.parse(text); } catch { throw new Error(`Gemini 返回非 JSON 响应 (HTTP ${resp.status})`); }
       if (j.error) throw new Error(j.error.message || JSON.stringify(j.error));
       return j;
     }
