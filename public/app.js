@@ -1994,53 +1994,32 @@ function imgToBase64(imgEl) {
   return { b64, mime };
 }
 
-// 像素级差异图：对比两张图片，生成红色高亮差异图
-function computePixelDiff(b64A, b64B) {
+// 叠加对比图：以开发稿为基准尺寸，设计稿 50% 透明度叠在上面
+// 有重影的地方 = 两图存在差异，AI 通过重影形状判断问题类型
+function computePixelDiff(b64Design, b64Dev) {
   return new Promise((resolve) => {
-    const imgA = new Image();
-    const imgB = new Image();
+    const imgDesign = new Image();
+    const imgDev = new Image();
     let loaded = 0;
     function onLoad() {
       loaded++;
       if (loaded < 2) return;
-      const w = Math.max(imgA.naturalWidth, imgB.naturalWidth);
-      const h = Math.max(imgA.naturalHeight, imgB.naturalHeight);
-      const cvA = document.createElement('canvas');
-      const cvB = document.createElement('canvas');
-      const cvDiff = document.createElement('canvas');
-      cvA.width = cvB.width = cvDiff.width = w;
-      cvA.height = cvB.height = cvDiff.height = h;
-      cvA.getContext('2d').drawImage(imgA, 0, 0, w, h);
-      cvB.getContext('2d').drawImage(imgB, 0, 0, w, h);
-      const dataA = cvA.getContext('2d').getImageData(0, 0, w, h).data;
-      const dataB = cvB.getContext('2d').getImageData(0, 0, w, h).data;
-      const ctxDiff = cvDiff.getContext('2d');
-      // 底图：淡化的开发稿
-      ctxDiff.drawImage(imgB, 0, 0, w, h);
-      ctxDiff.fillStyle = 'rgba(255,255,255,0.6)';
-      ctxDiff.fillRect(0, 0, w, h);
-      const diffData = ctxDiff.getImageData(0, 0, w, h);
-      const threshold = 25;
-      let diffCount = 0;
-      for (let i = 0; i < dataA.length; i += 4) {
-        const dr = dataA[i] - dataB[i];
-        const dg = dataA[i+1] - dataB[i+1];
-        const db = dataA[i+2] - dataB[i+2];
-        if (Math.sqrt(dr*dr + dg*dg + db*db) > threshold) {
-          diffData.data[i] = 220;
-          diffData.data[i+1] = 30;
-          diffData.data[i+2] = 30;
-          diffData.data[i+3] = 220;
-          diffCount++;
-        }
-      }
-      ctxDiff.putImageData(diffData, 0, 0);
-      resolve({ diffB64: cvDiff.toDataURL('image/png'), diffRatio: diffCount / (w * h) });
+      const w = imgDev.naturalWidth;
+      const h = imgDev.naturalHeight;
+      const cv = document.createElement('canvas');
+      cv.width = w;
+      cv.height = h;
+      const ctx = cv.getContext('2d');
+      ctx.drawImage(imgDev, 0, 0, w, h);
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(imgDesign, 0, 0, w, h);
+      ctx.globalAlpha = 1.0;
+      resolve({ diffB64: cv.toDataURL('image/png') });
     }
-    imgA.onload = onLoad;
-    imgB.onload = onLoad;
-    imgA.src = b64A;
-    imgB.src = b64B;
+    imgDesign.onload = onLoad;
+    imgDev.onload = onLoad;
+    imgDesign.src = b64Design;
+    imgDev.src = b64Dev;
   });
 }
 
