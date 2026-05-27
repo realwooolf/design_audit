@@ -41,7 +41,7 @@ const PROMPT = `你是一个专业的 UI 走查差异检测工具。你的唯一
 - 颜色差异：必须有明显可辨别的色差才报告，图片压缩造成的轻微色偏不算
 - 样式差异：必须是确实不同的样式属性，不要把渲染引擎差异当成样式问题
 - 漏报和误报同样有害：能看出来的差异都应该报告，不要因为"不够确定"而主动减少问题数量
-- 如果设计稿和开发稿看起来基本一致，返回空列表 {"issues": []} 是完全正确的
+- 如果提供了像素差异图，差异图中的红色区域是算法已经确认存在差异的地方，必须报告，不能忽略
 - 地图、卫星图、实景照片等动态渲染内容：这些区域内的细节在不同设备/渲染时会自然变化，不属于还原度问题，不要报告
 - "新增元素"类问题：必须确认该元素确实只在开发稿中存在、设计稿中完全没有对应元素
 - 如果编号清单中某元素的属性与图片视觉一致，即使图片看起来略有差异（渲染/压缩导致），也不要报告
@@ -106,7 +106,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { designImage, devImage, designProps } = req.body;
+    const { designImage, devImage, diffImage, designProps } = req.body;
     if (!designImage || !devImage) {
       return res.status(400).json({ error: '需要同时提供设计稿和开发稿图片' });
     }
@@ -120,13 +120,23 @@ export default async function handler(req, res) {
       propsContext = `\n\n【Figma 元素编号清单】以下是设计稿中的元素列表，每个元素有唯一编号。发现问题时请在 node_index 字段返回对应编号。\n${designProps.nodeSummary}`;
     }
 
+    const parts = [
+      { text: PROMPT + propsContext },
+      { text: '【第一张图：设计稿】' },
+      { inlineData: { mimeType: design.mimeType, data: design.data } },
+      { text: '【第二张图：开发稿】' },
+      { inlineData: { mimeType: dev.mimeType, data: dev.data } },
+    ];
+
+    if (diffImage) {
+      const diff = parseB64(diffImage);
+      parts.push({ text: '【第三张图：像素差异图】红色高亮区域是两图存在像素差异的地方，白色区域表示相同。请重点针对红色标注区域，分析它们代表的具体设计还原问题。' });
+      parts.push({ inlineData: { mimeType: diff.mimeType, data: diff.data } });
+    }
+
     const requestBody = {
       contents: [{
-        parts: [
-          { text: PROMPT + propsContext },
-          { inlineData: { mimeType: design.mimeType, data: design.data } },
-          { inlineData: { mimeType: dev.mimeType, data: dev.data } }
-        ]
+        parts
       }],
       generationConfig: {
         temperature: 0,

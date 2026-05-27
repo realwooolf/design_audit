@@ -8,6 +8,164 @@ function escHtml(str) {
   return d.innerHTML;
 }
 
+// ── Figma 直连（浏览器直接调 Figma API，用用户本机 IP，避免服务器 IP 限流）──
+const FIGMA_API_BASE = 'https://api.figma.com/v1';
+
+async function figmaFetch(url, token) {
+  const resp = await fetch(url, { headers: { 'X-Figma-Token': token } });
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    if (resp.status === 429) throw new Error('Figma API 请求频率超限，请稍后再试');
+    if (resp.status === 403) throw new Error('Figma Token 无效或已过期，请重新生成');
+    if (resp.status === 404) throw new Error('未找到该 Figma 文件或节点，请检查链接');
+    throw new Error(`Figma API 错误 (${resp.status}): ${text.slice(0, 100)}`);
+  }
+  return resp.json();
+}
+
+function _figmaCollectFrames(node) {
+  const frames = [];
+  if (!node.children) return frames;
+  for (const child of node.children) {
+    if (['FRAME','COMPONENT','COMPONENT_SET'].includes(child.type)) {
+      frames.push({ id: child.id, name: child.name, type: child.type });
+    } else if (child.type === 'SECTION' && child.children) {
+      for (const gc of child.children) {
+        if (['FRAME','COMPONENT','COMPONENT_SET'].includes(gc.type)) {
+          frames.push({ id: gc.id, name: gc.name, type: gc.type, section: child.name });
+        }
+      }
+    }
+  }
+  return frames;
+}
+
+function _rgbaToHex(color) {
+  if (!color) return null;
+  const r = Math.round((color.r || 0) * 255), g = Math.round((color.g || 0) * 255), b = Math.round((color.b || 0) * 255);
+  const hex = '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+  return (color.a != null && color.a < 1) ? hex + Math.round(color.a*255).toString(16).padStart(2,'0') : hex;
+}
+function _parseFill(fill) {
+  if (!fill || fill.visible === false) return null;
+  if (fill.type === 'SOLID') return { type:'SOLID', color:_rgbaToHex(fill.color), opacity: fill.opacity ?? 1 };
+  if (fill.type?.includes('GRADIENT')) return { type:fill.type, stops:(fill.gradientStops||[]).map(s=>({color:_rgbaToHex(s.color),position:s.position})) };
+  return { type: fill.type };
+}
+function _parseEffect(eff) {
+  if (!eff || eff.visible === false) return null;
+  const r = { type: eff.type };
+  if (eff.color) r.color = _rgbaToHex(eff.color);
+  if (eff.offset) r.offset = eff.offset;
+  if (eff.radius != null) r.radius = eff.radius;
+  if (eff.spread != null) r.spread = eff.spread;
+  return r;
+}
+function _extractDesignProps(node, depth, maxDepth) {
+  if (!node) return null;
+  const props = { name: node.name, type: node.type };
+  if (node.absoluteBoundingBox) { const bb = node.absoluteBoundingBox; props.x=Math.round(bb.x); props.y=Math.round(bb.y); props.width=Math.round(bb.width); props.height=Math.round(bb.height); }
+  if (node.fills?.length) { const p=node.fills.filter(f=>f.visible!==false).map(_parseFill).filter(Boolean); if(p.length) props.fills=p; }
+  if (node.strokes?.length) { const p=node.strokes.filter(f=>f.visible!==false).map(_parseFill).filter(Boolean); if(p.length){props.strokes=p; if(node.strokeWeight!=null)props.strokeWeight=node.strokeWeight; if(node.strokeAlign)props.strokeAlign=node.strokeAlign;} }
+  if (node.opacity!=null&&node.opacity<1) props.opacity=node.opacity;
+  if (node.cornerRadius!=null&&node.cornerRadius>0) props.cornerRadius=node.cornerRadius;
+  if (node.topLeftRadius>0||node.topRightRadius>0||node.bottomLeftRadius>0||node.bottomRightRadius>0) props.borderRadius={tl:node.topLeftRadius||0,tr:node.topRightRadius||0,bl:node.bottomLeftRadius||0,br:node.bottomRightRadius||0};
+  if (node.effects?.length) { const p=node.effects.filter(e=>e.visible!==false).map(_parseEffect).filter(Boolean); if(p.length)props.effects=p; }
+  if (node.type==='TEXT'&&node.style) { const s=node.style; if(s.fontFamily)props.fontFamily=s.fontFamily; if(s.fontSize)props.fontSize=s.fontSize; if(s.fontWeight)props.fontWeight=s.fontWeight; if(s.lineHeightPx)props.lineHeight=Math.round(s.lineHeightPx*10)/10; if(s.letterSpacing)props.letterSpacing=Math.round(s.letterSpacing*10)/10; if(s.textAlignHorizontal)props.textAlign=s.textAlignHorizontal; }
+  if (node.characters) props.text=node.characters.slice(0,100);
+  if (node.layoutMode&&node.layoutMode!=='NONE') { props.layoutMode=node.layoutMode; if(node.itemSpacing!=null)props.itemSpacing=node.itemSpacing; if(node.paddingLeft)props.paddingLeft=node.paddingLeft; if(node.paddingRight)props.paddingRight=node.paddingRight; if(node.paddingTop)props.paddingTop=node.paddingTop; if(node.paddingBottom)props.paddingBottom=node.paddingBottom; }
+  if (node.children?.length&&depth<maxDepth) { props.children=node.children.filter(c=>c.visible!==false).map(c=>_extractDesignProps(c,depth+1,maxDepth)).filter(Boolean); if(!props.children.length)delete props.children; if(props.children?.length===1&&!props.fills&&!props.strokes&&!props.cornerRadius&&!props.effects&&!props.layoutMode&&node.type!=='TEXT'){const child=props.children[0];child._parentName=props.name;return child;} }
+  return props;
+}
+const _WEIGHT_MAP = {100:'Thin',200:'Extra Light',300:'Light',400:'Regular',500:'Medium',600:'Semi-Bold',700:'Bold',800:'Extra Bold',900:'Black'};
+function _weightLabel(w) { const n=_WEIGHT_MAP[w]; return n?n+' ('+w+')':String(w); }
+function _generateIndexedNodeList(rootNode) {
+  const frameBox = rootNode.absoluteBoundingBox;
+  if (!frameBox||!frameBox.width||!frameBox.height) return {nodeList:[],nodeSummary:''};
+  const nodeList=[]; let counter=0;
+  function posHint(bb){if(!bb)return'';const cy=((bb.y-frameBox.y+bb.height/2)/frameBox.height)*100,cx=((bb.x-frameBox.x+bb.width/2)/frameBox.width)*100;let v=cy<25?'顶部':cy<45?'中上部':cy<55?'中部':cy<75?'中下部':'底部';let h=cx<30?'左侧':cx>70?'右侧':'';return h?v+h:v;}
+  function shortType(t){return{FRAME:'FRAME',GROUP:'GROUP',RECTANGLE:'RECT',ELLIPSE:'ELLIPSE',TEXT:'TEXT',VECTOR:'VECTOR',COMPONENT:'COMP',INSTANCE:'INST',LINE:'LINE',BOOLEAN_OPERATION:'BOOL'}[t]||t;}
+  function walk(node){
+    if(!node||node.visible===false)return;
+    const bb=node.absoluteBoundingBox,entry={};let hasVisual=false;
+    if(node.fills?.length){const s=node.fills.find(f=>f.visible!==false&&f.type==='SOLID'&&f.color);if(s){entry.fill=_rgbaToHex(s.color);hasVisual=true;}}
+    if(node.type==='TEXT'&&node.style){const s=node.style;if(s.fontSize){entry.fontSize=s.fontSize;hasVisual=true;}if(s.fontWeight){entry.fontWeight=s.fontWeight;hasVisual=true;}if(s.fontFamily){entry.fontFamily=s.fontFamily;hasVisual=true;}}
+    if(node.cornerRadius>0){entry.cornerRadius=node.cornerRadius;hasVisual=true;}
+    if(node.strokes?.length){const s=node.strokes.find(f=>f.visible!==false&&f.type==='SOLID'&&f.color);if(s){entry.strokeColor=_rgbaToHex(s.color);if(node.strokeWeight)entry.strokeWeight=node.strokeWeight;hasVisual=true;}}
+    if(node.opacity!=null&&node.opacity<1){entry.opacity=node.opacity;hasVisual=true;}
+    if(node.layoutMode&&node.layoutMode!=='NONE'){if(node.itemSpacing!=null){entry.itemSpacing=node.itemSpacing;hasVisual=true;}const pt=node.paddingTop||0,pr=node.paddingRight||0,pb=node.paddingBottom||0,pl=node.paddingLeft||0;if(pt||pr||pb||pl){entry.padding=`${pt}/${pr}/${pb}/${pl}`;hasVisual=true;}}
+    if(hasVisual&&bb){counter++;entry.index=counter;entry.name=node.name||'';entry.type=node.type;const relX=bb.x-frameBox.x,relY=bb.y-frameBox.y;entry.bbox={left:Math.max(0,Math.min(100,(relX/frameBox.width)*100)),top:Math.max(0,Math.min(100,(relY/frameBox.height)*100)),width:Math.max(0.5,Math.min(100,(bb.width/frameBox.width)*100)),height:Math.max(0.5,Math.min(100,(bb.height/frameBox.height)*100))};entry.pos=posHint(bb);nodeList.push(entry);}
+    if(node.children)node.children.forEach(walk);
+  }
+  walk(rootNode);
+  const lines=nodeList.map(n=>{const p=[];if(n.fill)p.push('填充'+n.fill);if(n.fontSize)p.push(n.fontSize+'px');if(n.fontWeight)p.push('字重'+_weightLabel(n.fontWeight));if(n.fontFamily)p.push(n.fontFamily);if(n.cornerRadius)p.push('圆角'+n.cornerRadius+'px');if(n.strokeColor)p.push('描边'+n.strokeColor+(n.strokeWeight?' '+n.strokeWeight+'px':''));if(n.opacity!=null)p.push('透明度'+n.opacity);if(n.itemSpacing!=null)p.push('间距'+n.itemSpacing+'px');if(n.padding)p.push('padding '+n.padding);return`#${n.index} [${shortType(n.type)}] ${n.name}${p.length?' — '+p.join(', '):''}  (${n.pos})`;});
+  return {nodeList, nodeSummary:lines.join('\n')};
+}
+
+async function figmaDirectList(fileKey, nodeId, token) {
+  const data = await figmaFetch(`${FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${encodeURIComponent(nodeId)}`, token);
+  const node = data.nodes?.[nodeId]?.document;
+  if (!node) throw new Error('未找到该节点，请检查链接');
+  return { parentName: node.name, parentType: node.type, frames: _figmaCollectFrames(node) };
+}
+
+async function figmaDirectExport(fileKey, nodeIds, token, scale = 2) {
+  const ids = nodeIds.join(',');
+  const data = await figmaFetch(`${FIGMA_API_BASE}/images/${fileKey}?ids=${encodeURIComponent(ids)}&format=png&scale=${scale}`, token);
+  if (data.err) throw new Error(`Figma 导出错误: ${data.err}`);
+  const images = [];
+  for (const nid of nodeIds) {
+    const imgUrl = data.images?.[nid];
+    if (!imgUrl) { images.push({ nodeId: nid, image: null, error: '该节点无法导出图片' }); continue; }
+    try {
+      const imgResp = await fetch(imgUrl);
+      if (!imgResp.ok) { images.push({ nodeId: nid, image: null, error: '图片下载失败' }); continue; }
+      const blob = await imgResp.blob();
+      const base64 = await new Promise(resolve => { const r = new FileReader(); r.onload = () => resolve(r.result.split(',')[1]); r.readAsDataURL(blob); });
+      images.push({ nodeId: nid, image: base64 });
+    } catch { images.push({ nodeId: nid, image: null, error: '图片下载失败' }); }
+  }
+  return { images };
+}
+
+async function figmaDirectProps(fileKey, nodeIds, token) {
+  const ids = nodeIds.join(',');
+  const data = await figmaFetch(`${FIGMA_API_BASE}/files/${fileKey}/nodes?ids=${encodeURIComponent(ids)}`, token);
+  const results = {}, indexedNodes = {};
+  for (const nid of nodeIds) {
+    const node = data.nodes?.[nid]?.document;
+    if (node) { results[nid] = _extractDesignProps(node, 0, 6); indexedNodes[nid] = _generateIndexedNodeList(node); }
+  }
+  return { props: results, indexedNodes };
+}
+
+// ── 项目置顶 ──────────────────────────────────────────────────
+function getPinnedIds() {
+  try { return JSON.parse(localStorage.getItem('dc_pinned_projects') || '[]'); } catch { return []; }
+}
+function setPinnedIds(ids) {
+  localStorage.setItem('dc_pinned_projects', JSON.stringify(ids));
+}
+function isProjectPinned(pid) { return getPinnedIds().includes(String(pid)); }
+function togglePinProject(pid) {
+  const ids = getPinnedIds();
+  const i = ids.indexOf(String(pid));
+  if (i === -1) ids.push(String(pid)); else ids.splice(i, 1);
+  setPinnedIds(ids);
+}
+function reorderProjectCards() {
+  const grid = document.getElementById('projectGrid');
+  if (!grid) return;
+  const cards = Array.from(grid.querySelectorAll('.project-card'));
+  const pinnedIds = getPinnedIds();
+  cards.sort((a, b) => {
+    const aPin = pinnedIds.includes(a.dataset.projectId) ? 0 : 1;
+    const bPin = pinnedIds.includes(b.dataset.projectId) ? 0 : 1;
+    return aPin - bPin;
+  });
+  cards.forEach(c => grid.appendChild(c));
+}
+
 // ── Dropdown toggle ────────────────────────────────────────────
 function toggleDropdown(id) {
   const el = document.getElementById(id);
@@ -1469,15 +1627,15 @@ let figmaPendingImport = null; // { fileKey, nodeIds, token } — Frame 链接�
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => autoDetectFigmaLink(), delay);
   }
-  linkInput.addEventListener('input', function() { triggerDetect(500); });
-  linkInput.addEventListener('paste', function() { triggerDetect(100); });
+  linkInput.addEventListener('paste', function() { triggerDetect(300); });
   if (tokenInput) {
-    tokenInput.addEventListener('input', function() { triggerDetect(500); });
-    tokenInput.addEventListener('paste', function() { triggerDetect(100); });
+    tokenInput.addEventListener('paste', function() { triggerDetect(300); });
   }
 })();
 
+let _figmaDetecting = false;
 async function autoDetectFigmaLink() {
+  if (_figmaDetecting) return;
   const linkVal = document.getElementById('figmaLinkInput').value.trim();
   const token = document.getElementById('figmaTokenInput').value.trim();
   figmaPendingImport = null;
@@ -1496,23 +1654,10 @@ async function autoDetectFigmaLink() {
   }
 
   setFigmaStatus('正在检测链接类型...', 'info');
+  _figmaDetecting = true;
 
   try {
-    const _figmaListAC = new AbortController();
-    const _figmaListTimeout = setTimeout(() => _figmaListAC.abort(), 60000);
-    const listResp = await fetch('/api/figma-export', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'list', fileKey: parsed.fileKey, nodeId: parsed.nodeId, token }),
-      signal: _figmaListAC.signal,
-    });
-    clearTimeout(_figmaListTimeout);
-    const listData = await listResp.json();
-
-    if (!listResp.ok) {
-      setFigmaStatus(listData.error || '获取节点信息失败', 'error', { retry: true });
-      return;
-    }
+    const listData = await figmaDirectList(parsed.fileKey, parsed.nodeId, token);
 
     if (listData.frames && listData.frames.length > 0) {
       // Section/Page — 显示 Frame 列表让用户勾选
@@ -1527,7 +1672,9 @@ async function autoDetectFigmaLink() {
       updateStartButtons();
     }
   } catch (e) {
-    setFigmaStatus('检测失败，请检查网络', 'error', { retry: true });
+    setFigmaStatus(e.message || '检测失败，请检查网络', 'error', { retry: true });
+  } finally {
+    _figmaDetecting = false;
   }
 }
 
@@ -1563,8 +1710,8 @@ function switchDesignTab(tab) {
     uploadTab.style.display = 'none';
     figmaTab.style.display = '';
     figmaTab.classList.remove('hidden');
-    figmaBtn.classList.add('seg-active');
-    uploadBtn.classList.remove('seg-active');
+    if (figmaBtn) figmaBtn.classList.add('seg-active');
+    if (uploadBtn) uploadBtn.classList.remove('seg-active');
   }
 }
 
@@ -1707,51 +1854,26 @@ function getNodeByIndex(index, nodeList) {
 
 async function exportFigmaImages(fileKey, nodeIds, token) {
   try {
-    // 并行请求：导出图片 + 获取设计属性
-    const _figmaExportAC = new AbortController();
-    const _figmaExportTimeout = setTimeout(() => _figmaExportAC.abort(), 120000);
-    const [resp, propsResp] = await Promise.all([
-      fetch('/api/figma-export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'export', fileKey, nodeIds, token, scale: 2 }),
-        signal: _figmaExportAC.signal,
-      }),
-      fetch('/api/figma-export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'props', fileKey, nodeIds, token }),
-      }).catch(err => { DEBUG && console.warn('[DesignCheck] Figma props 获取失败:', err.message); return null; })
+    // 并行请求：导出图片 + 获取设计属性（直连 Figma，用用户本机 IP）
+    const [data, propsData] = await Promise.all([
+      figmaDirectExport(fileKey, nodeIds, token, 2),
+      figmaDirectProps(fileKey, nodeIds, token).catch(err => { DEBUG && console.warn('[DesignCheck] Figma props 获取失败:', err.message); return null; })
     ]);
-    clearTimeout(_figmaExportTimeout);
-    const data = await resp.json();
-
-    if (!resp.ok) {
-      throw new Error(data.error || '导出失败');
-    }
 
     // 保存设计属性（即使获取失败也不阻断流程）
-    if (propsResp?.ok) {
-      const propsData = await propsResp.json().catch(() => null);
-      if (propsData?.props) {
-        figmaDesignProps = propsData.props;
-        DEBUG && console.log('[DesignCheck] Figma 设计属性已获取，节点数:', Object.keys(propsData.props).length);
-      } else {
-        DEBUG && console.warn('[DesignCheck] Figma props 响应无数据');
-      }
-      // 存储编号节点列表和清单
-      if (propsData?.indexedNodes) {
+    if (propsData?.props) {
+      figmaDesignProps = propsData.props;
+      DEBUG && console.log('[DesignCheck] Figma 设计属性已获取，节点数:', Object.keys(propsData.props).length);
+      if (propsData.indexedNodes) {
         figmaNodeListMap = {};
         figmaNodeSummaryMap = {};
-        for (const [nid, data] of Object.entries(propsData.indexedNodes)) {
-          figmaNodeListMap[nid] = data.nodeList || [];
-          figmaNodeSummaryMap[nid] = data.nodeSummary || '';
+        for (const [nid, nodeData] of Object.entries(propsData.indexedNodes)) {
+          figmaNodeListMap[nid] = nodeData.nodeList || [];
+          figmaNodeSummaryMap[nid] = nodeData.nodeSummary || '';
         }
         const totalNodes = Object.values(figmaNodeListMap).reduce((sum, list) => sum + list.length, 0);
         DEBUG && console.log('[DesignCheck] 编号清单已生成，共', totalNodes, '个节点');
       }
-    } else {
-      DEBUG && console.warn('[DesignCheck] Figma props 请求未成功, status:', propsResp?.status);
     }
 
     const successImages = (data.images || []).filter(img => img.image);
@@ -1870,6 +1992,56 @@ function imgToBase64(imgEl) {
     throw new Error('图片转换异常，base64 数据过短');
   }
   return { b64, mime };
+}
+
+// 像素级差异图：对比两张图片，生成红色高亮差异图
+function computePixelDiff(b64A, b64B) {
+  return new Promise((resolve) => {
+    const imgA = new Image();
+    const imgB = new Image();
+    let loaded = 0;
+    function onLoad() {
+      loaded++;
+      if (loaded < 2) return;
+      const w = Math.max(imgA.naturalWidth, imgB.naturalWidth);
+      const h = Math.max(imgA.naturalHeight, imgB.naturalHeight);
+      const cvA = document.createElement('canvas');
+      const cvB = document.createElement('canvas');
+      const cvDiff = document.createElement('canvas');
+      cvA.width = cvB.width = cvDiff.width = w;
+      cvA.height = cvB.height = cvDiff.height = h;
+      cvA.getContext('2d').drawImage(imgA, 0, 0, w, h);
+      cvB.getContext('2d').drawImage(imgB, 0, 0, w, h);
+      const dataA = cvA.getContext('2d').getImageData(0, 0, w, h).data;
+      const dataB = cvB.getContext('2d').getImageData(0, 0, w, h).data;
+      const ctxDiff = cvDiff.getContext('2d');
+      // 底图：淡化的开发稿
+      ctxDiff.drawImage(imgB, 0, 0, w, h);
+      ctxDiff.fillStyle = 'rgba(255,255,255,0.6)';
+      ctxDiff.fillRect(0, 0, w, h);
+      const diffData = ctxDiff.getImageData(0, 0, w, h);
+      const threshold = 25;
+      let diffCount = 0;
+      for (let i = 0; i < dataA.length; i += 4) {
+        const dr = dataA[i] - dataB[i];
+        const dg = dataA[i+1] - dataB[i+1];
+        const db = dataA[i+2] - dataB[i+2];
+        if (Math.sqrt(dr*dr + dg*dg + db*db) > threshold) {
+          diffData.data[i] = 220;
+          diffData.data[i+1] = 30;
+          diffData.data[i+2] = 30;
+          diffData.data[i+3] = 220;
+          diffCount++;
+        }
+      }
+      ctxDiff.putImageData(diffData, 0, 0);
+      resolve({ diffB64: cvDiff.toDataURL('image/png'), diffRatio: diffCount / (w * h) });
+    }
+    imgA.onload = onLoad;
+    imgB.onload = onLoad;
+    imgA.src = b64A;
+    imgB.src = b64B;
+  });
 }
 
 // 图片预处理：叠加坐标网格辅助 Gemini 空间定位（坐标系 0-1000，与 box_2d 一致）
@@ -2245,6 +2417,7 @@ function addProjectCard(name, reviewStatus, createdAt, prepend = true, skipUpdat
           <div>
             <div class="flex items-center gap-1.5">
               <h3 class="project-name-label font-semibold text-gray-900 text-sm">${escHtml(name)}</h3>
+              <span class="pin-badge" style="display:none;font-size:11px;line-height:1;" title="已置顶">📌</span>
               ${reviewStatus === '待设计验收' ? '<span class="status-badge badge-review"><span class="status-dot-static" style="background:#A78BFA;width:5px;height:5px;"></span>待验收</span>' : reviewStatus === '已通过' ? '<span class="status-badge badge-passed"><span class="status-dot-static" style="background:#34D399;width:5px;height:5px;"></span>已通过</span>' : '<span class="status-badge badge-active"><span class="status-dot" style="width:5px;height:5px;"></span>进行中</span>'}
             </div>
             <p class="text-xs text-gray-400 mt-0.5" style="font-family:var(--font-mono);font-size:10px;letter-spacing:0.03em;">${timeAgo(createdAt)}</p>
@@ -2255,6 +2428,10 @@ function addProjectCard(name, reviewStatus, createdAt, prepend = true, skipUpdat
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/></svg>
           </button>
           <div class="project-menu dropdown">
+            <div class="dropdown-item flex items-center gap-2" onclick="event.stopPropagation();projectMenuAction(this,'pin')">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/></svg>
+              <span class="pin-label">置顶</span>
+            </div>
             <div class="dropdown-item flex items-center gap-2" onclick="event.stopPropagation();projectMenuAction(this,'rename')">
               <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l2.651 2.651M19.513 7.138L8.404 18.247l-3.535.707.707-3.535L16.686 4.31a2 2 0 012.827 2.828z"/></svg>
               重命名
@@ -2289,6 +2466,16 @@ function addProjectCard(name, reviewStatus, createdAt, prepend = true, skipUpdat
     renderHome();
   }
   return card;
+}
+
+function applyPinState(card) {
+  const pid = card.dataset.projectId;
+  if (!pid) return;
+  const isPinned = isProjectPinned(pid);
+  const badge = card.querySelector('.pin-badge');
+  const label = card.querySelector('.pin-label');
+  if (badge) badge.style.display = isPinned ? '' : 'none';
+  if (label) label.textContent = isPinned ? '取消置顶' : '置顶';
 }
 
 function updateProjectCount() {
@@ -2379,7 +2566,12 @@ function projectMenuAction(item, action) {
   const menu = item.closest('.project-menu');
   menu.classList.remove('open');
 
-  if (action === 'rename') {
+  if (action === 'pin') {
+    const pid = card.dataset.projectId;
+    togglePinProject(pid);
+    applyPinState(card);
+    reorderProjectCards();
+  } else if (action === 'rename') {
     const label = card.querySelector('.project-name-label');
     if (label) startRenameProject(label);
   } else if (action === 'delete') {
@@ -2787,6 +2979,9 @@ async function loadProjectsFromDB() {
       // 批量插入完成后统一更新一次
       updateProjectCount();
       renderHome();
+      // 应用置顶状态并重新排序
+      document.querySelectorAll('.project-card').forEach(applyPinState);
+      reorderProjectCards();
     } else {
       // 无项目，清除骨架屏并隐藏
       if (grid) grid.innerHTML = '';
@@ -3531,7 +3726,7 @@ async function analyzePair(btnEl, silent) {
   function setProgress(val, text) {
     progress = val;
     if (panelFill) panelFill.style.width = val + '%';
-    if (panelText) panelText.textContent = text;
+    if (panelText) panelText.textContent = text + ' ' + Math.round(val) + '%';
   }
   // API 等待期间的慢速爬升（从当前值到 90%）
   function startApiCrawl() {
@@ -3552,13 +3747,14 @@ async function analyzePair(btnEl, silent) {
     const designData = imgToBase64(designImg);
     const devData = imgToBase64(devImg);
 
-    // Step 2: 叠加坐标网格 (10→25%)
+    // Step 2: 叠加坐标网格 + 像素 diff (10→25%)
     setProgress(15, '生成坐标网格...');
     const designRawB64 = `data:${designData.mime};base64,${designData.b64}`;
     const devRawB64 = `data:${devData.mime};base64,${devData.b64}`;
-    const [designGridB64, devGridB64] = await Promise.all([
+    const [designGridB64, devGridB64, diffResult] = await Promise.all([
       addGridOverlay(designRawB64),
       addGridOverlay(devRawB64),
+      computePixelDiff(designRawB64, devRawB64),
     ]);
     setProgress(25, '准备发送分析请求...');
 
@@ -3585,7 +3781,7 @@ async function analyzePair(btnEl, silent) {
     const analyzeProps = pairNodeSummary ? { nodeSummary: pairNodeSummary } : undefined;
     DEBUG && console.log('[DesignCheck] 发送给 Gemini:', pairNodeSummary ? `编号清单 ${pairNodeSummary.length} 字符` : '无 Figma 数据（纯图片模式）');
 
-    const _analyzeBody = JSON.stringify({ designImage: designGridB64, devImage: devGridB64, designProps: analyzeProps });
+    const _analyzeBody = JSON.stringify({ designImage: designGridB64, devImage: devGridB64, diffImage: diffResult.diffB64, designProps: analyzeProps });
     setProgress(30, 'AI 分析中…');
     startApiCrawl();
     const MAX_RETRIES = 2;
