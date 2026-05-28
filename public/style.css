@@ -124,7 +124,7 @@
 
   /* Scan animation */
   .scan-overlay { position: absolute; inset: 0; z-index: 25; pointer-events: none; overflow: hidden; }
-  .scan-line { position: absolute; left: 0; right: 0; height: 80px; background: linear-gradient(to top, rgba(198,93,59,.5) 0%, rgba(198,93,59,.15) 50%, transparent 100%); animation: scanDown 2.5s ease-in-out infinite; }
+  .scan-line { position: absolute; left: 0; right: 0; height: 80px; background: linear-gradient(to top, rgba(198,93,59,.8) 0%, rgba(198,93,59,.06) 50%, transparent 100%); animation: scanDown 2.5s ease-in-out infinite; }
   @keyframes scanDown { 0% { top: -80px; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
   .scan-grid { position: absolute; inset: 0; background: repeating-linear-gradient(0deg, transparent, transparent 20px, rgba(0,0,0,.02) 20px, rgba(0,0,0,.02) 21px), repeating-linear-gradient(90deg, transparent, transparent 20px, rgba(0,0,0,.02) 20px, rgba(0,0,0,.02) 21px); animation: gridPulse 2s ease-in-out infinite; }
   @keyframes gridPulse { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
